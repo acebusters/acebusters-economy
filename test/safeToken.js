@@ -6,15 +6,35 @@ contract('SafeToken', function(accounts) {
       return safe.balanceOf.call(accounts[0]);
     }).then(function(balance) {
       assert.equal(balance.valueOf(), 50000, "50000 wasn't issued to account");
+      return safe.totalSupply.call();
+    }).then(function(supply) {
+      assert.equal(supply.valueOf(), 50000, "50000 wasn't issued");
+      return safe.totalReserve.call();
+    }).then(function(reserve) {
+      assert.equal(reserve.valueOf(), 5000, "5000 wasn't sent to contract");
     });
   });
 
   it("should allow to sell", function() {
     var safe = SafeToken.deployed();
-    return safe.sellTokens(2500).then(function() {
+    return safe.sellTokens(25000).then(function() {
       return safe.balanceOf.call(accounts[0]);
     }).then(function(balance) {
       assert.equal(balance.valueOf(), 25000, "25000 wasn't deducted by sell");
+      return safe.totalSupply.call();
+    }).then(function(supply) {
+      assert.equal(supply.valueOf(), 25000, "25000 wasn't destroyed");
+      return safe.totalReserve.call();
+    }).then(function(reserve) {
+      assert.equal(reserve.valueOf(), 2500, "2500 wasn't allocated for withdrawal");
+      return safe.allocations.call(accounts[0]);
+    }).then(function(allocation) {
+      assert.equal(allocation.valueOf(), 2500, "2500 wasn't allocated for withdrawal");
+      return safe.claimEther();
+    }).then(function() {
+      return safe.allocations.call(accounts[0]);
+    }).then(function(allocation) {
+      assert.equal(allocation.valueOf(), 0, "allocation wasn't payed out.");
     });
   });
 

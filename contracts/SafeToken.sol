@@ -1,29 +1,65 @@
 pragma solidity ^0.4.7;
 
+contract SafeMath {
+
+  function safeMul(uint a, uint b) internal returns (uint) {
+    uint c = a * b;
+    assert(a == 0 || c / a == b);
+    return c;
+  }
+
+  function safeDiv(uint a, uint b) internal returns (uint) {
+    assert(b > 0);
+    uint c = a / b;
+    assert(a == b * c + a % b);
+    return c;
+  }
+
+  function safeSub(uint a, uint b) internal returns (uint) {
+    assert(b <= a);
+    return a - b;
+  }
+
+  function safeAdd(uint a, uint b) internal returns (uint) {
+    uint c = a + b;
+    assert(c>=a && c>=b);
+    return c;
+  }
+
+  function assert(bool assertion) internal {
+    if (!assertion) {
+      throw;
+    }
+  }
+}
+
 /**
  * Standard ERC20 token
  * https://github.com/ethereum/EIPs/issues/20
  */
-contract SafeToken {
+contract SafeToken is SafeMath {
 
   event Transfer(address indexed from, address indexed to, uint value);
   event Approval(address indexed owner, address indexed spender, uint value);
   event Purchase(address indexed purchaser, uint value);
   event Sell(address indexed seller, uint value);
-  event Error(uint errCode);
   
   string public name = "SafeToken";
   string public symbol = "VST";
-  uint public decimals = 18;
+  uint public decimals = 15;
 
   uint public totalSupply;
+  mapping(address => uint) balances;
+  mapping (address => mapping (address => uint)) allowed;
+  
   uint public ceiling;
   uint public floor;
   address public admin;
-  mapping(address => uint) balances;
+  // this is the contract's ethereum balance except 
+  // all ethereum which has been parked to be withdrawn in "allocations"
   uint public totalReserve;
-  mapping(address => uint) allocations;
-  mapping (address => mapping (address => uint)) allowed;
+  mapping(address => uint) public allocations;
+  
 
   function balanceOf(address _owner) constant returns (uint balance) {
     return balances[_owner];
@@ -42,52 +78,44 @@ contract SafeToken {
   modifier onlyAdmin() {
     if (msg.sender == admin) {
       _;
-    } else {
-      Error(3);
     }
   }
   
   function changeAdmin(address _newAdmin) onlyAdmin {
-    if (_newAdmin == msg.sender) {
-        Error(7);
-    }
-    if (_newAdmin == 0x0) {
-        Error(8);
+    if (_newAdmin == msg.sender || _newAdmin == 0x0) {
+        throw;
     }
     admin = _newAdmin;
   }
   
-  function moveCeiling(uint _ceiling) onlyAdmin {
-    if (_ceiling < floor) {
-        Error(1);
+  function moveCeiling(uint _newCeiling) onlyAdmin {
+    if (_newCeiling < floor) {
+        throw;
     }
-    ceiling = _ceiling;
+    ceiling = _newCeiling;
   }
   
   function moveFloor(uint _newFloor) onlyAdmin {
     if (_newFloor == 0 || _newFloor > ceiling) {
-        Error(2);
+        throw;
     }
-    uint newReserveNeeded = totalSupply / _newFloor;
-    if (totalSupply != newReserveNeeded * _newFloor + totalSupply % _newFloor) {
-        Error(2);
-    }
+    uint newReserveNeeded = safeDiv(totalSupply, _newFloor);
     if (totalReserve < newReserveNeeded) {
-        Error(4);
+        throw;
     }
     floor = _newFloor;
   }
   
   function allocateEther(address _to, uint _value) onlyAdmin {
-    // check uint overflow
-    if (_value == 0 || _value > totalReserve) {
-        Error(2);
+    if (_value == 0) {
+        return;
     }
-    if (totalReserve - _value < totalSupply / floor) {
-        Error(4);
+    uint leftReserve = safeSub(totalReserve, _value);
+    if (leftReserve < safeDiv(totalSupply, floor)) {
+        throw;
     }
-    totalReserve -= _value;
-    allocations[_to] += _value;
+    totalReserve = safeSub(totalReserve, _value);
+    allocations[_to] = safeAdd(allocations[_to], _value);
   }
   
   function () payable {
@@ -96,58 +124,34 @@ contract SafeToken {
   
   function purchaseTokens() payable {
     if (msg.value == 0) {
-      throw;
+      return;
     }
-    // check uint overflow
-    uint amount = msg.value * ceiling;
-    if (amount / msg.value != ceiling) {
-      throw;
-    }
-    // check uint overflow
-    uint sum = totalSupply + amount;
-    if (sum < totalSupply || sum < amount) {
-      throw;
-    }
-    totalReserve += msg.value;
-    totalSupply = sum;
-    balances[msg.sender] += amount;
-    Purchase(msg.sender, msg.value);
+    uint amount = safeMul(msg.value, ceiling);
+    totalReserve = safeAdd(totalReserve, msg.value);
+    totalSupply = safeAdd(totalSupply, amount);
+    balances[msg.sender] = safeAdd(balances[msg.sender], amount);
+    Purchase(msg.sender, amount);
   }
   
   function sellTokens(uint _value) {
-    uint amount = _value * floor;
-    if (_value != 0 && amount / _value != floor) {
-        Error(14);
-        return;
-    }
-    if (amount > balances[msg.sender]) {
-        Error(3);
-        return;
-    }
-    if (_value > totalReserve) {
-        Error(3);
-        return;
-    }
-    totalSupply -= amount;
-    balances[msg.sender] -= amount;
-    totalReserve -= _value;
-    allocations[msg.sender] += _value;
+    uint amount = safeDiv(_value, floor);
+    totalSupply = safeSub(totalSupply, _value);
+    balances[msg.sender] = safeSub(balances[msg.sender], _value);
+    totalReserve = safeSub(totalReserve, amount);
+    allocations[msg.sender] = safeAdd(allocations[msg.sender], amount);
     Sell(msg.sender,  _value);
   }
   
   // withdraw accumulated balance, called by seller or beneficiary
   function claimEther() {
-    uint amount = allocations[msg.sender];
-    if (amount == 0) {
-      Error(5);
+    if (allocations[msg.sender] == 0) {
       return;
     }
-    if (this.balance < amount) {
-      Error(6);
-      return;
+    if (this.balance < allocations[msg.sender]) {
+      throw;
     }
     allocations[msg.sender] = 0;
-    if (!msg.sender.send(amount)) {
+    if (!msg.sender.send(allocations[msg.sender])) {
       throw;
     }
   }
@@ -158,38 +162,15 @@ contract SafeToken {
   }
 
   function transfer(address _to, uint _value) {
-    if (_value > balances[msg.sender]) {
-      Error(9);
-      return;
-    }
-    
-    uint newBalTo = balances[_to] + _value;
-    if (newBalTo < balances[_to] || newBalTo < _value) {
-      Error(11);
-      return;
-    }
-    balances[msg.sender] -= _value;
-    balances[_to] = newBalTo;
+    balances[msg.sender] = safeSub(balances[msg.sender], _value);
+    balances[_to] = safeAdd(balances[_to], _value);
     Transfer(msg.sender, _to, _value);
   }
 
   function transferFrom(address _from, address _to, uint _value) {
-    if (_value > balances[_from]) {
-      Error(8);
-      return;
-    }
-    if (_value > allowed[_from][msg.sender]) {
-      Error(17);
-      return;
-    }
-    uint newBalTo = balances[_to] + _value;
-    if (newBalTo < balances[_to] || newBalTo < _value) {
-      Error(7);
-      return;
-    }
-    balances[_to] = newBalTo;
-    balances[_from] -= _value;
-    allowed[_from][msg.sender] -= _value;
+    balances[_to] = safeAdd(balances[_to], _value);
+    balances[_from] = safeSub(balances[_from], _value);
+    allowed[_from][msg.sender] = safeSub(allowed[_from][msg.sender], _value);
     Transfer(_from, _to, _value);
   }
 
