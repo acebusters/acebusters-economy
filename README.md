@@ -5,6 +5,8 @@ according to https://medium.com/@Vlad_Zamfir/a-safe-token-sale-mechanism-8d73c43
 ### run
 
 ```
+npm install
+testrpc
 truffle test
 ```
 

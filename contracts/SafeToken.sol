@@ -1,38 +1,6 @@
 pragma solidity ^0.4.8;
 
-contract SafeMath {
-
-  function safeMul(uint a, uint b) internal returns (uint) {
-    uint c = a * b;
-    assert(a == 0 || c / a == b);
-    return c;
-  }
-
-  function safeDiv(uint a, uint b) internal returns (uint) {
-    assert(b > 0);
-    uint c = a / b;
-    assert(a == b * c + a % b);
-    return c;
-  }
-
-  function safeSub(uint a, uint b) internal returns (uint) {
-    assert(b <= a);
-    return a - b;
-  }
-
-  function safeAdd(uint a, uint b) internal returns (uint) {
-    uint c = a + b;
-    assert(c>=a && c>=b);
-    return c;
-  }
-
-  function assert(bool assertion) internal {
-    if (!assertion) {
-      throw;
-    }
-  }
-}
-
+import "./SafeMath.sol";
 /**
  * SafeToken implements a price floor and a price ceiling on the token being
  * sold. It is based of the zeppelin token contract. SafeToken implements the
@@ -61,7 +29,6 @@ contract SafeToken is SafeMath {
   // this is the contract's ethereum balance except 
   // all ethereum which has been parked to be withdrawn in "allocations"
   uint public totalReserve;
-  mapping(address => uint) allocations;
   
 
   function balanceOf(address _owner) constant returns (uint balance) {
@@ -73,7 +40,7 @@ contract SafeToken is SafeMath {
   }
 
   function allocatedTo(address _owner) constant returns (uint) {
-    return allocations[_owner];
+    return allowed[this][_owner];
   }
   
   function SafeToken() {
@@ -128,7 +95,7 @@ contract SafeToken is SafeMath {
         throw;
     }
     totalReserve = safeSub(totalReserve, _value);
-    allocations[_to] = safeAdd(allocations[_to], _value);
+    allowed[this][_to] = safeAdd(allowed[this][_to], _value);
   }
   
   function () payable {
@@ -151,25 +118,28 @@ contract SafeToken is SafeMath {
     totalSupply = safeSub(totalSupply, _value);
     balances[msg.sender] = safeSub(balances[msg.sender], _value);
     totalReserve = safeSub(totalReserve, amount);
-    allocations[msg.sender] = safeAdd(allocations[msg.sender], amount);
+    allowed[this][msg.sender] = safeAdd(allowed[this][msg.sender], amount);
     Sell(msg.sender,  _value);
   }
   
   // withdraw accumulated balance, called by seller or beneficiary
   function claimEther() {
-    if (allocations[msg.sender] == 0) {
+    if (allowed[this][msg.sender] == 0) {
       return;
     }
-    if (this.balance < allocations[msg.sender]) {
+    if (this.balance < allowed[this][msg.sender]) {
       throw;
     }
-    allocations[msg.sender] = 0;
-    if (!msg.sender.send(allocations[msg.sender])) {
+    allowed[this][msg.sender] = 0;
+    if (!msg.sender.send(allowed[this][msg.sender])) {
       throw;
     }
   }
   
   function approve(address _spender, uint _value) {
+    if (msg.sender == address(this)) {
+        throw;
+    }
     allowed[msg.sender][_spender] = _value;
     Approval(msg.sender, _spender, _value);
   }

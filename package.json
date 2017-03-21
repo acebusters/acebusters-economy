@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "a token sale architecture that arguably has some nice safety properties",
   "author": "Johann Barbie",
-  "license": "ISC",
+  "license": "MIT",
   "main": "truffle.js",
   "keywords": [
     "token",
