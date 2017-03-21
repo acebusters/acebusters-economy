@@ -1,4 +1,4 @@
-pragma solidity ^0.4.7;
+pragma solidity ^0.4.8;
 
 contract SafeMath {
 
@@ -34,8 +34,9 @@ contract SafeMath {
 }
 
 /**
- * Standard ERC20 token
- * https://github.com/ethereum/EIPs/issues/20
+ * SafeToken implements a price floor and a price ceiling on the token being
+ * sold. It is based of the zeppelin token contract. SafeToken implements the
+ * https://github.com/ethereum/EIPs/issues/20 interface.
  */
 contract SafeToken is SafeMath {
 
@@ -52,13 +53,15 @@ contract SafeToken is SafeMath {
   mapping(address => uint) balances;
   mapping (address => mapping (address => uint)) allowed;
   
+  // the Token sale mechanism parameters:
+
   uint public ceiling;
   uint public floor;
   address public admin;
   // this is the contract's ethereum balance except 
   // all ethereum which has been parked to be withdrawn in "allocations"
   uint public totalReserve;
-  mapping(address => uint) public allocations;
+  mapping(address => uint) allocations;
   
 
   function balanceOf(address _owner) constant returns (uint balance) {
@@ -67,6 +70,10 @@ contract SafeToken is SafeMath {
 
   function allowance(address _owner, address _spender) constant returns (uint remaining) {
     return allowed[_owner][_spender];
+  }
+
+  function allocatedTo(address _owner) constant returns (uint) {
+    return allocations[_owner];
   }
   
   function SafeToken() {
@@ -99,6 +106,9 @@ contract SafeToken is SafeMath {
     if (_newFloor == 0 || _newFloor > ceiling) {
         throw;
     }
+    // moveFloor fails if the administrator tries to push the floor so low
+    // that the sale mechanism is no longer able to buy back all tokens at
+    // the floor price if those funds were to be withdrawn.
     uint newReserveNeeded = safeDiv(totalSupply, _newFloor);
     if (totalReserve < newReserveNeeded) {
         throw;
@@ -110,6 +120,9 @@ contract SafeToken is SafeMath {
     if (_value == 0) {
         return;
     }
+    // allocateEther fails if allocating those funds would mean that the
+    // sale mechanism is no longer able to buy back all tokens at the floor
+    // price if those funds were to be withdrawn.
     uint leftReserve = safeSub(totalReserve, _value);
     if (leftReserve < safeDiv(totalSupply, floor)) {
         throw;

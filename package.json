@@ -1,0 +1,19 @@
+{
+  "name": "safe-token-sale",
+  "version": "0.1.0",
+  "description": "a token sale architecture that arguably has some nice safety properties",
+  "author": "Johann Barbie",
+  "license": "ISC",
+  "main": "truffle.js",
+  "keywords": [
+    "token",
+    "ethereum"
+  ],
+  "devDependencies": {
+    "babel-preset-es2015": "^6.18.0",
+    "babel-preset-stage-2": "^6.18.0",
+    "babel-preset-stage-3": "^6.17.0",
+    "babel-register": "^6.23.0",
+    "babel-polyfill": "^6.23.0"
+  }
+}
