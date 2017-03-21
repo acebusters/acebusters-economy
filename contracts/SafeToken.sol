@@ -17,19 +17,19 @@ contract SafeToken is SafeMath {
   string public symbol = "VST";
   uint public decimals = 15;
 
+  // total supply of tokens
   uint public totalSupply;
+  // contract's ether balance, except all
+  // ether which has been parked to be withdrawn in "allowed[address(this)]"
+  uint public totalReserve;
   mapping(address => uint) balances;
   mapping (address => mapping (address => uint)) allowed;
   
   // the Token sale mechanism parameters:
-
   uint public ceiling;
   uint public floor;
   address public admin;
-  // this is the contract's ethereum balance except 
-  // all ethereum which has been parked to be withdrawn in "allocations"
-  uint public totalReserve;
-  
+  address public beneficiary;
 
   function balanceOf(address _owner) constant returns (uint balance) {
     return balances[_owner];
@@ -40,17 +40,24 @@ contract SafeToken is SafeMath {
   }
 
   function allocatedTo(address _owner) constant returns (uint) {
-    return allowed[this][_owner];
+    return allowed[address(this)][_owner];
   }
   
-  function SafeToken() {
+  function SafeToken(address _beneficiary) {
       admin = msg.sender;
       ceiling = 10;
       floor = 10;
+      beneficiary = _beneficiary;
   }
 
   modifier onlyAdmin() {
     if (msg.sender == admin) {
+      _;
+    }
+  }
+  
+  modifier onlyBeneficiary() {
+    if (msg.sender == beneficiary) {
       _;
     }
   }
@@ -83,19 +90,26 @@ contract SafeToken is SafeMath {
     floor = _newFloor;
   }
   
-  function allocateEther(address _to, uint _value) onlyAdmin {
-    if (_value == 0) {
+  function allocateEther(uint _amountEther) onlyAdmin {
+    if (_amountEther == 0) {
         return;
     }
     // allocateEther fails if allocating those funds would mean that the
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
-    uint leftReserve = safeSub(totalReserve, _value);
+    uint leftReserve = safeSub(totalReserve, _amountEther);
     if (leftReserve < safeDiv(totalSupply, floor)) {
         throw;
     }
-    totalReserve = safeSub(totalReserve, _value);
-    allowed[this][_to] = safeAdd(allowed[this][_to], _value);
+    totalReserve = safeSub(totalReserve, _amountEther);
+    allowed[address(this)][beneficiary] = safeAdd(allowed[address(this)][beneficiary], _amountEther);
+  }
+  
+  function changeBeneficiary(address _newBeneficiary) onlyBeneficiary {
+    if (_newBeneficiary == msg.sender || _newBeneficiary == 0x0) {
+        throw;
+    }
+    beneficiary = _newBeneficiary;
   }
   
   function () payable {
@@ -106,32 +120,32 @@ contract SafeToken is SafeMath {
     if (msg.value == 0) {
       return;
     }
-    uint amount = safeMul(msg.value, ceiling);
+    uint amountToken = safeMul(msg.value, ceiling);
     totalReserve = safeAdd(totalReserve, msg.value);
-    totalSupply = safeAdd(totalSupply, amount);
-    balances[msg.sender] = safeAdd(balances[msg.sender], amount);
-    Purchase(msg.sender, amount);
+    totalSupply = safeAdd(totalSupply, amountToken);
+    balances[msg.sender] = safeAdd(balances[msg.sender], amountToken);
+    Purchase(msg.sender, amountToken);
   }
   
-  function sellTokens(uint _value) {
-    uint amount = safeDiv(_value, floor);
-    totalSupply = safeSub(totalSupply, _value);
-    balances[msg.sender] = safeSub(balances[msg.sender], _value);
-    totalReserve = safeSub(totalReserve, amount);
-    allowed[this][msg.sender] = safeAdd(allowed[this][msg.sender], amount);
-    Sell(msg.sender,  _value);
+  function sellTokens(uint _amountToken) {
+    uint amountEther = safeDiv(_amountToken, floor);
+    totalSupply = safeSub(totalSupply, _amountToken);
+    balances[msg.sender] = safeSub(balances[msg.sender], _amountToken);
+    totalReserve = safeSub(totalReserve, amountEther);
+    allowed[address(this)][msg.sender] = safeAdd(allowed[address(this)][msg.sender], amountEther);
+    Sell(msg.sender,  _amountToken);
   }
   
   // withdraw accumulated balance, called by seller or beneficiary
   function claimEther() {
-    if (allowed[this][msg.sender] == 0) {
+    if (allowed[address(this)][msg.sender] == 0) {
       return;
     }
-    if (this.balance < allowed[this][msg.sender]) {
+    if (this.balance < allowed[address(this)][msg.sender]) {
       throw;
     }
-    allowed[this][msg.sender] = 0;
-    if (!msg.sender.send(allowed[this][msg.sender])) {
+    allowed[address(this)][msg.sender] = 0;
+    if (!msg.sender.send(allowed[address(this)][msg.sender])) {
       throw;
     }
   }

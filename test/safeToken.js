@@ -49,7 +49,15 @@ contract('SafeToken', function(accounts) {
     assert.equal(allocation.toNumber(), 0, "allocation wasn't payed out.");
   });
 
+  it("allocate_funds_to_beneficiary and claim_revenue");
+
+  it("allocate_funds_to_beneficiary can not allocate to random address");
+
   it("should handle The sale administrator sets floor = 0, ceiling = infinity");
+
+  it("the sale administrator can’t raise the floor price if doing so would make it unable to purchase all of the tokens at the floor price");
+
+  it("allocate_funds_to_beneficiary fails if allocating those funds would mean that the sale mechanism is no longer able to buy back all ");
 
   it("should return correct balances after transfer", async function() {
     // create contract and buy some tokens   
