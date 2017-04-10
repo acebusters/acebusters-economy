@@ -16,11 +16,12 @@ contract SafeToken is SafeMath {
   string public name = "SafeToken";
   string public symbol = "VST";
   uint public decimals = 15;
+  uint infinity = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
   // total supply of tokens
   uint public totalSupply;
-  // contract's ether balance, except all
-  // ether which has been parked to be withdrawn in "allowed[address(this)]"
+  // contract's ether balance, except all ether which
+  // has been parked to be withdrawn in "allowed[address(this)]"
   uint public totalReserve;
   mapping(address => uint) balances;
   mapping (address => mapping (address => uint)) allowed;
@@ -31,22 +32,27 @@ contract SafeToken is SafeMath {
   address public admin;
   address public beneficiary;
 
-  function balanceOf(address _owner) constant returns (uint balance) {
+  // returns balance
+  function balanceOf(address _owner) constant returns (uint) {
     return balances[_owner];
   }
 
-  function allowance(address _owner, address _spender) constant returns (uint remaining) {
+  // return remaining allowance
+  function allowance(address _owner, address _spender) constant returns (uint) {
     return allowed[_owner][_spender];
   }
 
+  // returns balance of ether parked to be withdrawn
   function allocatedTo(address _owner) constant returns (uint) {
     return allowed[address(this)][_owner];
   }
   
   function SafeToken(address _beneficiary) {
       admin = msg.sender;
-      ceiling = 10;
-      floor = 10;
+      // initial price at 1000 Wei / token
+      ceiling = 1000;
+      // initial floor at 1000 Wei / token
+      floor = 1000;
       beneficiary = _beneficiary;
   }
 
@@ -77,13 +83,21 @@ contract SafeToken is SafeMath {
   }
   
   function moveFloor(uint _newFloor) onlyAdmin {
-    if (_newFloor == 0 || _newFloor > ceiling) {
+    // make sure to also set ceiling when floor is set to 0
+    // this way further puchases are prevented
+    if (_newFloor == 0) {
+      floor = 0;
+      ceiling = infinity;
+      return;
+    }
+
+    if (_newFloor > ceiling) {
         throw;
     }
     // moveFloor fails if the administrator tries to push the floor so low
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
-    uint newReserveNeeded = safeDiv(totalSupply, _newFloor);
+    uint newReserveNeeded = safeMul(totalSupply, _newFloor);
     if (totalReserve < newReserveNeeded) {
         throw;
     }
@@ -98,7 +112,7 @@ contract SafeToken is SafeMath {
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
     uint leftReserve = safeSub(totalReserve, _amountEther);
-    if (leftReserve < safeDiv(totalSupply, floor)) {
+    if (leftReserve < safeMul(totalSupply, floor)) {
         throw;
     }
     totalReserve = safeSub(totalReserve, _amountEther);
@@ -120,7 +134,16 @@ contract SafeToken is SafeMath {
     if (msg.value == 0) {
       return;
     }
-    uint amountToken = safeMul(msg.value, ceiling);
+    // disable purchases if ceiling set to infinity
+    if (ceiling == infinity) {
+      throw;
+    }
+    uint amountToken = safeDiv(msg.value, ceiling);
+    // avoid deposits that issue nothing
+    // might happen with very large ceiling
+    if (amountToken == 0) {
+      throw;
+    }
     totalReserve = safeAdd(totalReserve, msg.value);
     totalSupply = safeAdd(totalSupply, amountToken);
     balances[msg.sender] = safeAdd(balances[msg.sender], amountToken);
@@ -128,7 +151,10 @@ contract SafeToken is SafeMath {
   }
   
   function sellTokens(uint _amountToken) {
-    uint amountEther = safeDiv(_amountToken, floor);
+    if (floor == 0) {
+      throw;
+    }
+    uint amountEther = safeMul(_amountToken, floor);
     totalSupply = safeSub(totalSupply, _amountToken);
     balances[msg.sender] = safeSub(balances[msg.sender], _amountToken);
     totalReserve = safeSub(totalReserve, amountEther);
@@ -151,20 +177,26 @@ contract SafeToken is SafeMath {
   }
   
   function approve(address _spender, uint _value) {
-    if (msg.sender == address(this)) {
-        throw;
+    if (msg.sender == address(this) || msg.sender == _spender) {
+      throw;
     }
     allowed[msg.sender][_spender] = _value;
     Approval(msg.sender, _spender, _value);
   }
 
   function transfer(address _to, uint _value) {
+    if (_to == address(this) || _value == 0) {
+      throw;
+    }
     balances[msg.sender] = safeSub(balances[msg.sender], _value);
     balances[_to] = safeAdd(balances[_to], _value);
     Transfer(msg.sender, _to, _value);
   }
 
   function transferFrom(address _from, address _to, uint _value) {
+    if (_from == _to || _to == address(this) || _value == 0) {
+      throw;
+    }
     balances[_to] = safeAdd(balances[_to], _value);
     balances[_from] = safeSub(balances[_from], _value);
     allowed[_from][msg.sender] = safeSub(allowed[_from][msg.sender], _value);
