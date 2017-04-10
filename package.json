@@ -15,5 +15,8 @@
     "babel-preset-stage-3": "^6.17.0",
     "babel-register": "^6.23.0",
     "babel-polyfill": "^6.23.0"
+  },
+  "dependencies": {
+    "bignumber.js": "^4.0.1"
   }
 }
