@@ -83,14 +83,6 @@ contract SafeToken is SafeMath {
   }
   
   function moveFloor(uint _newFloor) onlyAdmin {
-    // make sure to also set ceiling when floor is set to 0
-    // this way further puchases are prevented
-    if (_newFloor == 0) {
-      floor = 0;
-      ceiling = infinity;
-      return;
-    }
-
     if (_newFloor > ceiling) {
         throw;
     }

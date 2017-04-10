@@ -90,6 +90,7 @@ contract('SafeToken', function(accounts) {
 
     await token.moveFloor(0);
     const floor = await token.floor.call();
+    await token.moveCeiling(BYTES_32);
     ceiling = await token.ceiling.call();
     assert.equal(floor.toNumber(), 0, 'setting floor failed');
     assert.equal(ceiling.toNumber(), BYTES_32, 'setting ceiling failed');
