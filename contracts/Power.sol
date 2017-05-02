@@ -1,6 +1,6 @@
 pragma solidity ^0.4.8;
 
-import "./SafeToken.sol";
+import "./Nutz.sol";
 import "./SafeMath.sol";
 import "./PowerInterface.sol";
 
@@ -67,7 +67,7 @@ contract Power is PowerInterface {
     if (totalSupply - amountPower > totalSupply) {
       throw;
     }
-    var nutz = SafeToken(nutzAddr);
+    var nutz = Nutz(nutzAddr);
 
     uint amountAce = amountPower.mul(nutz.totalSupply()).div(totalSupply);
     if (nutz.balanceOf(this) < amountAce) {

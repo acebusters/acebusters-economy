@@ -4,11 +4,11 @@ import "./SafeMath.sol";
 import "./ERC20.sol";
 import "./PowerInterface.sol";
 /**
- * SafeToken implements a price floor and a price ceiling on the token being
- * sold. It is based of the zeppelin token contract. SafeToken implements the
+ * Nutz implements a price floor and a price ceiling on the token being
+ * sold. It is based of the zeppelin token contract. Nutz implements the
  * https://github.com/ethereum/EIPs/issues/20 interface.
  */
-contract SafeToken is ERC20 {
+contract Nutz is ERC20 {
   using SafeMath for uint;
 
   event Purchase(address indexed purchaser, uint value);
@@ -49,7 +49,7 @@ contract SafeToken is ERC20 {
     return allowed[address(this)][_owner];
   }
   
-  function SafeToken(address _beneficiary) {
+  function Nutz(address _beneficiary) {
       admin = msg.sender;
       // initial price at 1000 Wei / token
       ceiling = 1000;
