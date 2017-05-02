@@ -9,7 +9,7 @@ contract('SafeToken', function(accounts) {
 
   it('should allow to purchase', async function() {
     // create token contract, default ceiling == floor
-    const token = await SafeToken.new();
+    const token = await SafeToken.new(0, 0);
     const ceiling = await token.ceiling.call();
     // purchase some tokens with ether
     const amountWei = web3.toWei(1, 'ether');
@@ -18,7 +18,7 @@ contract('SafeToken', function(accounts) {
     // check balance, supply and reserve
     const balanceTkn = await token.balanceOf.call(accounts[0]);
     assert.equal(balanceTkn.toNumber(), amountWei / ceiling, 'token wasn\'t issued to account');
-    const supplyTkn = await token.totalSupply.call();
+    const supplyTkn = await token.activeSupply.call();
     assert.equal(supplyTkn.toNumber(), amountWei / ceiling, 'token wasn\'t issued');
     const reserveWei = await token.totalReserve.call();
     assert.equal(reserveWei.toNumber(), amountWei, 'ether wasn\'t sent to contract');
@@ -26,7 +26,7 @@ contract('SafeToken', function(accounts) {
 
   it('should allow to sell', async function() {
     // create contract and purchase tokens for 1 ether
-    const token = await SafeToken.new();
+    const token = await SafeToken.new(0, 0);
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
     const amountWei = web3.toWei(1, 'ether');
@@ -40,7 +40,7 @@ contract('SafeToken', function(accounts) {
     // check balance, supply
     balanceTkn = await token.balanceOf.call(accounts[0]);
     assert.equal(balanceTkn.toNumber(), halfAmountWei / floor, 'token wasn\'t deducted by sell');
-    const supplyTkn = await token.totalSupply.call();
+    const supplyTkn = await token.activeSupply.call();
     assert.equal(supplyTkn.toNumber(), halfAmountWei / floor, 'token wasn\'t destroyed');
     // check allocation and reserve
     let allocationWei = await token.allocatedTo.call(accounts[0]);
@@ -55,7 +55,7 @@ contract('SafeToken', function(accounts) {
 
   it('allocate_funds_to_beneficiary and claim_revenue', async function() {
     // create token contract, default ceiling == floor
-    const token = await SafeToken.new(accounts[1]);
+    const token = await SafeToken.new(accounts[1], accounts[2]);
     await token.moveCeiling(1500);
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
@@ -80,7 +80,7 @@ contract('SafeToken', function(accounts) {
 
   it('should handle The sale administrator sets floor = 0, ceiling = infinity', async function() {
     // create token contract, default ceiling == floor
-    const token = await SafeToken.new();
+    const token = await SafeToken.new(0, 0);
     let ceiling = await token.ceiling.call();
     const amountWei = web3.toWei(1, 'ether');
     let txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
@@ -103,8 +103,8 @@ contract('SafeToken', function(accounts) {
       // check balance, supply and reserve
       const balanceTknAfter = await token.balanceOf.call(accounts[0]);
       assert.equal(balanceTknAfter.toNumber(), balanceTknBefore, 'balance should stay same after failed purchase');
-      const supplyTkn = await token.totalSupply.call();
-      assert.equal(supplyTkn.toNumber(), balanceTknBefore, 'totalSupply should stay same after failed purchase');
+      const supplyTkn = await token.activeSupply.call();
+      assert.equal(supplyTkn.toNumber(), balanceTknBefore, 'activeSupply should stay same after failed purchase');
       const reserveWei = await token.totalReserve.call();
       assert.equal(reserveWei.toNumber(), amountWei, 'ether should not have been deposited');
       return;
@@ -114,12 +114,12 @@ contract('SafeToken', function(accounts) {
 
   it('the sale administrator can’t raise the floor price if doing so would make it unable to purchase all of the tokens at the floor price', async function() {
     // create contract and buy some tokens
-    const token = await SafeToken.new();
+    const token = await SafeToken.new(0, 0);
     let ceiling = await token.ceiling.call();
     const amountWei = web3.toWei(1, 'ether');
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
     await web3.eth.transactionMined(txHash);
-    let supplyTkn = await token.totalSupply.call(accounts[0]);
+    let supplyTkn = await token.activeSupply.call(accounts[0]);
     assert.equal(supplyTkn.toNumber(), amountWei / ceiling, 'amount wasn\'t issued to account');
     // move ceiling so we can move floor
     await token.moveCeiling(2000);
@@ -137,7 +137,7 @@ contract('SafeToken', function(accounts) {
 
   it('allocate_funds_to_beneficiary fails if allocating those funds would mean that the sale mechanism is no longer able to buy back all outstanding tokens',  async function() {
     // create token contract, default ceiling == floor
-    const token = await SafeToken.new(accounts[1]);
+    const token = await SafeToken.new(accounts[1], 0);
     await token.moveCeiling(1500);
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
@@ -162,7 +162,7 @@ contract('SafeToken', function(accounts) {
 
   it('should return correct balances after transfer', async function() {
     // create contract and buy some tokens
-    const token = await SafeToken.new();
+    const token = await SafeToken.new(0, 0);
     const ceiling = await token.ceiling.call();
     const amountWei = web3.toWei(1, 'ether');
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
@@ -181,7 +181,7 @@ contract('SafeToken', function(accounts) {
   });
 
   it('should throw an error when trying to transfer more than balance', async function() {
-    const token = await SafeToken.new();
+    const token = await SafeToken.new(0, 0);
     try {
       await token.transfer(accounts[1], 101);
     } catch(error) {

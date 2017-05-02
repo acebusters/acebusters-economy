@@ -14,13 +14,13 @@ contract SafeToken {
   event Purchase(address indexed purchaser, uint value);
   event Sell(address indexed seller, uint value);
   
-  string public name = "SafeToken";
-  string public symbol = "VST";
-  uint public decimals = 15;
+  string public name = "Acebusters NUTZ";
+  string public symbol = "NTZ";
+  uint public decimals = 12;
   uint infinity = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-  // total supply of tokens
-  uint public totalSupply;
+  // active supply of tokens
+  uint public activeSupply;
   // contract's ether balance, except all ether which
   // has been parked to be withdrawn in "allowed[address(this)]"
   uint public totalReserve;
@@ -32,6 +32,7 @@ contract SafeToken {
   uint public floor;
   address public admin;
   address public beneficiary;
+  address public power;
 
   // returns balance
   function balanceOf(address _owner) constant returns (uint) {
@@ -48,13 +49,14 @@ contract SafeToken {
     return allowed[address(this)][_owner];
   }
   
-  function SafeToken(address _beneficiary) {
+  function SafeToken(address _beneficiary, address _powerAddr) {
       admin = msg.sender;
       // initial price at 1000 Wei / token
       ceiling = 1000;
       // initial floor at 1000 Wei / token
       floor = 1000;
       beneficiary = _beneficiary;
+      power = _powerAddr;
   }
 
   modifier onlyAdmin() {
@@ -90,7 +92,7 @@ contract SafeToken {
     // moveFloor fails if the administrator tries to push the floor so low
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
-    uint newReserveNeeded = totalSupply.mul(_newFloor);
+    uint newReserveNeeded = activeSupply.mul(_newFloor);
     if (totalReserve < newReserveNeeded) {
         throw;
     }
@@ -105,7 +107,7 @@ contract SafeToken {
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
     uint leftReserve = totalReserve.sub(_amountEther);
-    if (leftReserve < totalSupply.mul(floor)) {
+    if (leftReserve < activeSupply.mul(floor)) {
         throw;
     }
     totalReserve = totalReserve.sub(_amountEther);
@@ -138,7 +140,7 @@ contract SafeToken {
       throw;
     }
     totalReserve = totalReserve.add(msg.value);
-    totalSupply = totalSupply.add(amountToken);
+    activeSupply = activeSupply.add(amountToken);
     balances[msg.sender] = balances[msg.sender].add(amountToken);
     Purchase(msg.sender, amountToken);
   }
@@ -148,7 +150,7 @@ contract SafeToken {
       throw;
     }
     uint amountEther = _amountToken.mul(floor);
-    totalSupply = totalSupply.sub(_amountToken);
+    activeSupply = activeSupply.sub(_amountToken);
     balances[msg.sender] = balances[msg.sender].sub(_amountToken);
     totalReserve = totalReserve.sub(amountEther);
     allowed[address(this)][msg.sender] = allowed[address(this)][msg.sender].add(amountEther);
