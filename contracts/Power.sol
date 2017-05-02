@@ -61,31 +61,24 @@ contract Power is PowerInterface {
       throw;
     }
     uint amountPower = downs[_pos].left.sub(expected);
-    if (balances[downs[_pos].owner] < amountPower) {
-      throw;
-    }
-    if (totalSupply - amountPower > totalSupply) {
-      throw;
-    }
+
+    // calculate token amount representing amount of power
     var nutz = Nutz(nutzAddr);
+    uint totalNtz = nutz.activeSupply().add(nutz.balanceOf(address(this)));
+    uint amountNtz = amountPower.mul(totalNtz).div(totalSupply);
 
-    uint totalNutz = nutz.activeSupply().add(nutz.balanceOf(address(this)));
-    uint amountAce = amountPower.mul(totalNutz).div(totalSupply);
-    if (nutz.balanceOf(this) < amountAce) {
-      throw;
-    }
-
+    // transfer power and tokens
     balances[downs[_pos].owner] = balances[downs[_pos].owner].sub(amountPower);
     balances[nutzAddr] = balances[nutzAddr].add(amountPower);
     downs[_pos].left = expected;
-    if (!nutz.transfer(downs[_pos].owner, amountAce)) {
+    if (!nutz.transfer(downs[_pos].owner, amountNtz)) {
       throw;
     }
     return true;
   }
 
 
-  modifier onlyAce() {
+  modifier onlyNutzContract() {
     //checking access
     if (msg.sender != nutzAddr) {
       throw;
@@ -93,7 +86,7 @@ contract Power is PowerInterface {
     _;
   }
 
-  function accredit(address _investor) onlyAce {
+  function accredit(address _investor) onlyNutzContract {
     if (balances[_investor] == 0) {
       balances[nutzAddr] -= 1;
       balances[_investor] = 1;
@@ -101,7 +94,7 @@ contract Power is PowerInterface {
   }
 
   // this is called when NTZ are deposited into the power pool
-  function up(address _sender, uint _value, uint _totalSupply) onlyAce returns (bool) {
+  function up(address _sender, uint _value, uint _totalSupply) onlyNutzContract returns (bool) {
     if (_value <= 0) {
       throw;
     }
