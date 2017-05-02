@@ -6,7 +6,8 @@ import "./SafeMath.sol";
  * sold. It is based of the zeppelin token contract. SafeToken implements the
  * https://github.com/ethereum/EIPs/issues/20 interface.
  */
-contract SafeToken is SafeMath {
+contract SafeToken {
+  using SafeMath for uint;
 
   event Transfer(address indexed from, address indexed to, uint value);
   event Approval(address indexed owner, address indexed spender, uint value);
@@ -89,7 +90,7 @@ contract SafeToken is SafeMath {
     // moveFloor fails if the administrator tries to push the floor so low
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
-    uint newReserveNeeded = safeMul(totalSupply, _newFloor);
+    uint newReserveNeeded = totalSupply.mul(_newFloor);
     if (totalReserve < newReserveNeeded) {
         throw;
     }
@@ -103,12 +104,12 @@ contract SafeToken is SafeMath {
     // allocateEther fails if allocating those funds would mean that the
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
-    uint leftReserve = safeSub(totalReserve, _amountEther);
-    if (leftReserve < safeMul(totalSupply, floor)) {
+    uint leftReserve = totalReserve.sub(_amountEther);
+    if (leftReserve < totalSupply.mul(floor)) {
         throw;
     }
-    totalReserve = safeSub(totalReserve, _amountEther);
-    allowed[address(this)][beneficiary] = safeAdd(allowed[address(this)][beneficiary], _amountEther);
+    totalReserve = totalReserve.sub(_amountEther);
+    allowed[address(this)][beneficiary] = allowed[address(this)][beneficiary].add(_amountEther);
   }
   
   function changeBeneficiary(address _newBeneficiary) onlyBeneficiary {
@@ -130,15 +131,15 @@ contract SafeToken is SafeMath {
     if (ceiling == infinity) {
       throw;
     }
-    uint amountToken = safeDiv(msg.value, ceiling);
+    uint amountToken = msg.value.div(ceiling);
     // avoid deposits that issue nothing
     // might happen with very large ceiling
     if (amountToken == 0) {
       throw;
     }
-    totalReserve = safeAdd(totalReserve, msg.value);
-    totalSupply = safeAdd(totalSupply, amountToken);
-    balances[msg.sender] = safeAdd(balances[msg.sender], amountToken);
+    totalReserve = totalReserve.add(msg.value);
+    totalSupply = totalSupply.add(amountToken);
+    balances[msg.sender] = balances[msg.sender].add(amountToken);
     Purchase(msg.sender, amountToken);
   }
   
@@ -146,11 +147,11 @@ contract SafeToken is SafeMath {
     if (floor == 0) {
       throw;
     }
-    uint amountEther = safeMul(_amountToken, floor);
-    totalSupply = safeSub(totalSupply, _amountToken);
-    balances[msg.sender] = safeSub(balances[msg.sender], _amountToken);
-    totalReserve = safeSub(totalReserve, amountEther);
-    allowed[address(this)][msg.sender] = safeAdd(allowed[address(this)][msg.sender], amountEther);
+    uint amountEther = _amountToken.mul(floor);
+    totalSupply = totalSupply.sub(_amountToken);
+    balances[msg.sender] = balances[msg.sender].sub(_amountToken);
+    totalReserve = totalReserve.sub(amountEther);
+    allowed[address(this)][msg.sender] = allowed[address(this)][msg.sender].add(amountEther);
     Sell(msg.sender,  _amountToken);
   }
   
@@ -180,8 +181,8 @@ contract SafeToken is SafeMath {
     if (_to == address(this) || _value == 0) {
       throw;
     }
-    balances[msg.sender] = safeSub(balances[msg.sender], _value);
-    balances[_to] = safeAdd(balances[_to], _value);
+    balances[msg.sender] = balances[msg.sender].sub(_value);
+    balances[_to] = balances[_to].add(_value);
     Transfer(msg.sender, _to, _value);
   }
 
@@ -189,9 +190,9 @@ contract SafeToken is SafeMath {
     if (_from == _to || _to == address(this) || _value == 0) {
       throw;
     }
-    balances[_to] = safeAdd(balances[_to], _value);
-    balances[_from] = safeSub(balances[_from], _value);
-    allowed[_from][msg.sender] = safeSub(allowed[_from][msg.sender], _value);
+    balances[_to] = balances[_to].add(_value);
+    balances[_from] = balances[_from].sub(_value);
+    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
     Transfer(_from, _to, _value);
   }
 
