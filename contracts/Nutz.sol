@@ -33,6 +33,7 @@ contract Nutz is ERC20 {
   address public admin;
   address public beneficiary;
   address public powerAddr;
+  uint accredAmount;
 
   // returns balance
   function balanceOf(address _owner) constant returns (uint) {
@@ -49,13 +50,14 @@ contract Nutz is ERC20 {
     return allowed[address(this)][_owner];
   }
   
-  function Nutz(address _beneficiary) {
+  function Nutz(address _beneficiary, uint _accredAmount) {
       admin = msg.sender;
       // initial price at 1000 Wei / token
       ceiling = 1000;
       // initial floor at 1000 Wei / token
       floor = 1000;
       beneficiary = _beneficiary;
+      accredAmount = _accredAmount;
   }
 
   modifier onlyAdmin() {
@@ -149,6 +151,10 @@ contract Nutz is ERC20 {
     activeSupply = activeSupply.add(amountToken);
     balances[msg.sender] = balances[msg.sender].add(amountToken);
     Purchase(msg.sender, amountToken);
+    if (accredAmount > 0 && amountToken >= accredAmount) {
+      var power = PowerInterface(powerAddr);
+      power.accredit(msg.sender);
+    }
   }
   
   function sellTokens(uint _amountToken) {

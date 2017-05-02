@@ -55,8 +55,8 @@ contract Power is PowerInterface {
     if (_now <= downs[_pos].start) {
       throw;
     }
-    uint elapsed = _now.sub(downs[_pos].start).div(downtime);
-    uint expected = downs[_pos].total.sub(downs[_pos].total.mul(elapsed));
+    // calculate amount that can be withdrawn according to time passed
+    uint expected = downs[_pos].total - ((downs[_pos].total * (_now - downs[_pos].start)) / downtime);
     if (downs[_pos].left <= expected) {
       throw;
     }
@@ -69,12 +69,14 @@ contract Power is PowerInterface {
     }
     var nutz = Nutz(nutzAddr);
 
-    uint amountAce = amountPower.mul(nutz.totalSupply()).div(totalSupply);
+    uint totalNutz = nutz.activeSupply().add(nutz.balanceOf(address(this)));
+    uint amountAce = amountPower.mul(totalNutz).div(totalSupply);
     if (nutz.balanceOf(this) < amountAce) {
       throw;
     }
+
     balances[downs[_pos].owner] = balances[downs[_pos].owner].sub(amountPower);
-    totalSupply -= totalSupply.sub(amountPower);
+    balances[nutzAddr] = balances[nutzAddr].add(amountPower);
     downs[_pos].left = expected;
     if (!nutz.transfer(downs[_pos].owner, amountAce)) {
       throw;
