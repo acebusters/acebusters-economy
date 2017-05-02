@@ -9,21 +9,25 @@ contract Power is PowerInterface {
 
   // total amount of tokens
   uint public totalSupply;
+  // time it should take to power down
   uint public downtime;
+  // token contract address
   address public nutzAddr;
-  // maximum amount of power that can be given out;
+  // maximum amount of power that can be given out
   uint public maxPower;
+  // if this is active, investors need to have bal >= 1 to be able to invest
   bool preemption;
 
+  // all investors balances
   mapping (address => uint256) balances;
 
+  // data structure for withdrawals
   struct DownRequest {
     address owner;
     uint total;
     uint left;
     uint start;
   }
-
   DownRequest[] downs;
 
   /// @param _holder The address from which the balance will be retrieved
@@ -36,8 +40,11 @@ contract Power is PowerInterface {
     nutzAddr = _nutzAddr;
     downtime = _downtime;
     totalSupply = _initialSupply;
+    // 100% of economy unassigned
     balances[nutzAddr] = _initialSupply;
+    // have 10% of economy ownable by default
     maxPower = _initialSupply.div(10);
+    // only accredited investors are allowed to power up
     preemption = true;
   }
 

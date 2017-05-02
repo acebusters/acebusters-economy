@@ -148,6 +148,11 @@ contract Nutz is ERC20 {
       throw;
     }
     totalReserve = totalReserve.add(msg.value);
+    // make sure investors' share grows with economy
+    if (powerAddr != 0x0 && balances[powerAddr] > 0) {
+      uint invShare = balances[powerAddr].mul(amountToken).div(activeSupply);
+      balances[powerAddr] = balances[powerAddr].add(invShare);
+    }
     activeSupply = activeSupply.add(amountToken);
     balances[msg.sender] = balances[msg.sender].add(amountToken);
     Purchase(msg.sender, amountToken);
@@ -162,6 +167,11 @@ contract Nutz is ERC20 {
       throw;
     }
     uint amountEther = _amountToken.mul(floor);
+    // make sure investors' share shrinks with economy
+    if (powerAddr != 0x0 && balances[powerAddr] > 0) {
+      uint invShare = balances[powerAddr].mul(_amountToken).div(activeSupply);
+      balances[powerAddr] = balances[powerAddr].sub(invShare);
+    }
     activeSupply = activeSupply.sub(_amountToken);
     balances[msg.sender] = balances[msg.sender].sub(_amountToken);
     totalReserve = totalReserve.sub(amountEther);

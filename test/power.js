@@ -42,7 +42,7 @@ contract('Power', (accounts) => {
 
     // check balances in token contract
     let ntzBal = await token.balanceOf.call(accounts[0]);
-    assert.equal(ntzBal.toNumber(), 10026, 'power down failed');
+    assert.equal(ntzBal.toNumber(), 10028, 'power down failed');
     const ts = await token.activeSupply.call();
     assert.equal(ts.toNumber(), 20000, 'config failed.');
   });
