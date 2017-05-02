@@ -1,16 +1,16 @@
 pragma solidity ^0.4.8;
 
 import "./SafeMath.sol";
+import "./ERC20.sol";
+import "./PowerInterface.sol";
 /**
  * SafeToken implements a price floor and a price ceiling on the token being
  * sold. It is based of the zeppelin token contract. SafeToken implements the
  * https://github.com/ethereum/EIPs/issues/20 interface.
  */
-contract SafeToken {
+contract SafeToken is ERC20 {
   using SafeMath for uint;
 
-  event Transfer(address indexed from, address indexed to, uint value);
-  event Approval(address indexed owner, address indexed spender, uint value);
   event Purchase(address indexed purchaser, uint value);
   event Sell(address indexed seller, uint value);
   
@@ -32,7 +32,7 @@ contract SafeToken {
   uint public floor;
   address public admin;
   address public beneficiary;
-  address public power;
+  address public powerAddr;
 
   // returns balance
   function balanceOf(address _owner) constant returns (uint) {
@@ -49,14 +49,13 @@ contract SafeToken {
     return allowed[address(this)][_owner];
   }
   
-  function SafeToken(address _beneficiary, address _powerAddr) {
+  function SafeToken(address _beneficiary) {
       admin = msg.sender;
       // initial price at 1000 Wei / token
       ceiling = 1000;
       // initial floor at 1000 Wei / token
       floor = 1000;
       beneficiary = _beneficiary;
-      power = _powerAddr;
   }
 
   modifier onlyAdmin() {
@@ -76,6 +75,13 @@ contract SafeToken {
         throw;
     }
     admin = _newAdmin;
+  }
+
+  function setPower(address _power) onlyAdmin {
+    if (powerAddr != 0x0 || _power == 0x0) {
+        throw;
+    }
+    powerAddr = _power;
   }
   
   function moveCeiling(uint _newCeiling) onlyAdmin {
@@ -179,18 +185,34 @@ contract SafeToken {
     Approval(msg.sender, _spender, _value);
   }
 
-  function transfer(address _to, uint _value) {
+  function transfer(address _to, uint _value) returns (bool) {
     if (_to == address(this) || _value == 0) {
       throw;
+    }
+
+    if (_to == powerAddr) {
+      var power = PowerInterface(powerAddr);
+      uint totalSupply = activeSupply.add(balances[powerAddr]);
+      if (!power.up(msg.sender, _value, totalSupply)) {
+        throw;
+      }
     }
     balances[msg.sender] = balances[msg.sender].sub(_value);
     balances[_to] = balances[_to].add(_value);
     Transfer(msg.sender, _to, _value);
+    return true;
   }
 
   function transferFrom(address _from, address _to, uint _value) {
     if (_from == _to || _to == address(this) || _value == 0) {
       throw;
+    }
+    if (_to == powerAddr) {
+      var power = PowerInterface(powerAddr);
+      uint totalSupply = activeSupply.add(balances[powerAddr]);
+      if (!power.up(_from, _value, totalSupply)) {
+        throw;
+      }
     }
     balances[_to] = balances[_to].add(_value);
     balances[_from] = balances[_from].sub(_value);

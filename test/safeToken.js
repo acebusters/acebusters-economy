@@ -9,7 +9,7 @@ contract('SafeToken', function(accounts) {
 
   it('should allow to purchase', async function() {
     // create token contract, default ceiling == floor
-    const token = await SafeToken.new(0, 0);
+    const token = await SafeToken.new(0);
     const ceiling = await token.ceiling.call();
     // purchase some tokens with ether
     const amountWei = web3.toWei(1, 'ether');
@@ -26,7 +26,7 @@ contract('SafeToken', function(accounts) {
 
   it('should allow to sell', async function() {
     // create contract and purchase tokens for 1 ether
-    const token = await SafeToken.new(0, 0);
+    const token = await SafeToken.new(0);
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
     const amountWei = web3.toWei(1, 'ether');
@@ -55,7 +55,7 @@ contract('SafeToken', function(accounts) {
 
   it('allocate_funds_to_beneficiary and claim_revenue', async function() {
     // create token contract, default ceiling == floor
-    const token = await SafeToken.new(accounts[1], accounts[2]);
+    const token = await SafeToken.new(accounts[1]);
     await token.moveCeiling(1500);
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
@@ -80,7 +80,7 @@ contract('SafeToken', function(accounts) {
 
   it('should handle The sale administrator sets floor = 0, ceiling = infinity', async function() {
     // create token contract, default ceiling == floor
-    const token = await SafeToken.new(0, 0);
+    const token = await SafeToken.new(0);
     let ceiling = await token.ceiling.call();
     const amountWei = web3.toWei(1, 'ether');
     let txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
@@ -114,7 +114,7 @@ contract('SafeToken', function(accounts) {
 
   it('the sale administrator can’t raise the floor price if doing so would make it unable to purchase all of the tokens at the floor price', async function() {
     // create contract and buy some tokens
-    const token = await SafeToken.new(0, 0);
+    const token = await SafeToken.new(0);
     let ceiling = await token.ceiling.call();
     const amountWei = web3.toWei(1, 'ether');
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
@@ -162,7 +162,7 @@ contract('SafeToken', function(accounts) {
 
   it('should return correct balances after transfer', async function() {
     // create contract and buy some tokens
-    const token = await SafeToken.new(0, 0);
+    const token = await SafeToken.new(0);
     const ceiling = await token.ceiling.call();
     const amountWei = web3.toWei(1, 'ether');
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
@@ -181,7 +181,7 @@ contract('SafeToken', function(accounts) {
   });
 
   it('should throw an error when trying to transfer more than balance', async function() {
-    const token = await SafeToken.new(0, 0);
+    const token = await SafeToken.new(0);
     try {
       await token.transfer(accounts[1], 101);
     } catch(error) {
