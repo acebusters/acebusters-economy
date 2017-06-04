@@ -35,7 +35,7 @@ contract('Power', (accounts) => {
     await token.transfer(power.address, 400, {from: accounts[3]});
     powBal = await power.balanceOf.call(accounts[3]);
     // power down and check
-    await power.down(11);
+    await power.transfer(token.address, 11);
     await power.downTickTest(0, (Date.now() / 1000 | 0) + downtime);
     powBal = await power.balanceOf.call(accounts[0]);
     assert.equal(powBal.toNumber(), 10, 'power down failed');

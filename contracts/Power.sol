@@ -2,13 +2,11 @@ pragma solidity ^0.4.8;
 
 import "./Nutz.sol";
 import "./SafeMath.sol";
-import "./PowerInterface.sol";
+import "./ERC20Basic.sol";
 
-contract Power is PowerInterface {
+contract Power is ERC20Basic {
   using SafeMath for uint;
 
-  // total amount of tokens
-  uint public totalSupply;
   // time it should take to power down
   uint public downtime;
   // token contract address
@@ -122,7 +120,10 @@ contract Power is PowerInterface {
   }
 
   // registers a powerdown request
-  function down(uint _amountPower) returns (bool success) {
+  function transfer(address _to, uint _amountPower) returns (bool success) {
+    if (_to != nutzAddr) {
+      throw;
+    }
     if (_amountPower <= 0) {
       throw;
     }

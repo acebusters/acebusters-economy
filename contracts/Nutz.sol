@@ -14,7 +14,7 @@ contract Nutz is ERC20 {
   event Purchase(address indexed purchaser, uint value);
   event Sell(address indexed seller, uint value);
   
-  string public name = "Acebusters NUTZ";
+  string public name = "Acebusters Nutz";
   string public symbol = "NTZ";
   uint public decimals = 12;
   uint infinity = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
