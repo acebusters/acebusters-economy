@@ -20,10 +20,12 @@ contract Nutz is ERC20 {
   uint public decimals = 12;
   uint infinity = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-  // contract's ether balance, except all ether which
-  // has been parked to be withdrawn in "allowed[address(this)]"
-  uint public totalReserve;
+  // contract's ether balance, except all ether parked to be withdrawn
+  uint public reserve;
+  // balanceOf[powerAddr] returns power pool
+  // balanceOf[address(this)] returns burn pool
   mapping(address => uint) balances;
+  // "allowed[address(this)][x]" ether parked to be withdraw
   mapping (address => mapping (address => uint)) allowed;
   
   // the Token sale mechanism parameters:
@@ -38,17 +40,15 @@ contract Nutz is ERC20 {
   }
 
   function totalSupply() constant returns (uint256) {
+    // active supply + power pool + burn pool
     return activeSupply.add(balances[powerAddr]).add(balances[address(this)]);
   }
 
   // return remaining allowance
+  // if calling return allowed[address(this)][_spender];
+  // returns balance of ether parked to be withdrawn
   function allowance(address _owner, address _spender) constant returns (uint) {
     return allowed[_owner][_spender];
-  }
-
-  // returns balance of ether parked to be withdrawn
-  function allocatedTo(address _owner) constant returns (uint) {
-    return allowed[address(this)][_owner];
   }
   
   function Nutz(uint _downTime) {
@@ -60,24 +60,65 @@ contract Nutz is ERC20 {
       powerAddr = new Power(address(this), _downTime);
   }
 
+
+
+
+
+  // ############################################
+  // ########### INTERNAL FUNCTIONS #############
+  // ############################################
+  
+  function sellTokens(uint _amountToken) internal returns (bool) {
+    if (floor == 0) {
+      throw;
+    }
+    uint amountEther = _amountToken.mul(floor);
+    // make sure investors' share shrinks with economy
+    if (powerAddr != 0x0 && balances[powerAddr] > 0) {
+      uint invShare = balances[powerAddr].mul(_amountToken).div(activeSupply);
+      balances[powerAddr] = balances[powerAddr].sub(invShare);
+    }
+    activeSupply = activeSupply.sub(_amountToken);
+    balances[msg.sender] = balances[msg.sender].sub(_amountToken);
+    reserve = reserve.sub(amountEther);
+    allowed[address(this)][msg.sender] = allowed[address(this)][msg.sender].add(amountEther);
+    Sell(msg.sender,  _amountToken);
+    return true;
+  }
+
+  // withdraw accumulated balance, called by seller or beneficiary
+  function claimEther(address _sender, address _to) internal returns (bool) {
+    uint amountEth = allowed[address(this)][_sender];
+    if (amountEth == 0 || this.balance < amountEth) {
+      throw;
+    }
+    allowed[address(this)][_sender] = 0;
+    if (!_to.send(amountEth)) {
+      throw;
+    }
+    return true;
+  }
+
+  function powerUp(uint _amountNtz) internal returns (bool) {
+    var power = Power(powerAddr);
+    uint totalSupply = activeSupply.add(balances[powerAddr]).add(balances[address(this)]);
+    if (!power.up(msg.sender, _amountNtz, totalSupply)) {
+      throw;
+    }
+    balances[msg.sender] = balances[msg.sender].sub(_amountNtz);
+    balances[powerAddr] = balances[powerAddr].add(_amountNtz);
+    return true;
+  }
+
+
+  // ############################################
+  // ########### ADMIN FUNCTIONS ################
+  // ############################################
+
   modifier onlyAdmin() {
     if (msg.sender == admin) {
       _;
     }
-  }
-  
-  function changeAdmin(address _newAdmin) onlyAdmin {
-    if (_newAdmin == msg.sender || _newAdmin == 0x0) {
-        throw;
-    }
-    admin = _newAdmin;
-  }
-
-  function setPower(address _power) onlyAdmin {
-    if (powerAddr != 0x0 || _power == 0x0) {
-        throw;
-    }
-    powerAddr = _power;
   }
   
   function moveCeiling(uint _newCeiling) onlyAdmin {
@@ -95,12 +136,42 @@ contract Nutz is ERC20 {
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     uint newReserveNeeded = activeSupply.mul(_newFloor);
-    if (totalReserve < newReserveNeeded) {
+    if (reserve < newReserveNeeded) {
         throw;
     }
     floor = _newFloor;
   }
-  
+
+  function allocateEther(uint _amountEther, address _beneficiary) onlyAdmin {
+    if (_amountEther == 0) {
+        return;
+    }
+    // allocateEther fails if allocating those funds would mean that the
+    // sale mechanism is no longer able to buy back all tokens at the floor
+    // price if those funds were to be withdrawn.
+    uint leftReserve = reserve.sub(_amountEther);
+    if (leftReserve < activeSupply.mul(floor)) {
+        throw;
+    }
+    reserve = reserve.sub(_amountEther);
+    allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountEther);
+  }
+
+  function dilutePower(uint _amountNtz) onlyAdmin {
+    var power = Power(powerAddr);
+    uint totalSupply = activeSupply.add(balances[powerAddr]).add(balances[address(this)]);
+    if (!power.burn(totalSupply, _amountNtz)) {
+      throw;
+    }
+  }
+
+
+
+
+  // ############################################
+  // ########### PAYABLE FUNCTIONS ##############
+  // ############################################
+
   function () payable {
     purchaseTokens();
   }
@@ -119,7 +190,7 @@ contract Nutz is ERC20 {
     if (amountToken == 0) {
       throw;
     }
-    totalReserve = totalReserve.add(msg.value);
+    reserve = reserve.add(msg.value);
     // make sure investors' share grows with economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
       uint invShare = balances[powerAddr].mul(amountToken).div(activeSupply);
@@ -129,106 +200,55 @@ contract Nutz is ERC20 {
     balances[msg.sender] = balances[msg.sender].add(amountToken);
     Purchase(msg.sender, amountToken);
   }
+
+
+
+
+  // ############################################
+  // ########### PUBLIC FUNCTIONS ###############
+  // ############################################
   
-  function sellTokens(uint _amountToken) {
-    if (floor == 0) {
+  function approve(address _spender, uint _amountNtz) {
+    if (_spender == address(this) || msg.sender == _spender || _amountNtz == 0) {
       throw;
     }
-    uint amountEther = _amountToken.mul(floor);
-    // make sure investors' share shrinks with economy
-    if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint invShare = balances[powerAddr].mul(_amountToken).div(activeSupply);
-      balances[powerAddr] = balances[powerAddr].sub(invShare);
-    }
-    activeSupply = activeSupply.sub(_amountToken);
-    balances[msg.sender] = balances[msg.sender].sub(_amountToken);
-    totalReserve = totalReserve.sub(amountEther);
-    allowed[address(this)][msg.sender] = allowed[address(this)][msg.sender].add(amountEther);
-    Sell(msg.sender,  _amountToken);
+    allowed[msg.sender][_spender] = _amountNtz;
+    Approval(msg.sender, _spender, _amountNtz);
   }
 
-  function allocateEther(uint _amountEther, address _beneficiary) onlyAdmin {
-    if (_amountEther == 0) {
-        return;
-    }
-    // allocateEther fails if allocating those funds would mean that the
-    // sale mechanism is no longer able to buy back all tokens at the floor
-    // price if those funds were to be withdrawn.
-    uint leftReserve = totalReserve.sub(_amountEther);
-    if (leftReserve < activeSupply.mul(floor)) {
-        throw;
-    }
-    totalReserve = totalReserve.sub(_amountEther);
-    allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountEther);
-  }
-  
-  // withdraw accumulated balance, called by seller or beneficiary
-  function claimEther() {
-    if (allowed[address(this)][msg.sender] == 0) {
-      return;
-    }
-    if (this.balance < allowed[address(this)][msg.sender]) {
-      throw;
-    }
-    allowed[address(this)][msg.sender] = 0;
-    if (!msg.sender.send(allowed[address(this)][msg.sender])) {
-      throw;
-    }
-  }
-  
-  function approve(address _spender, uint _value) {
-    if (_spender == address(this) || msg.sender == _spender || _value == 0) {
-      throw;
-    }
-    // admin can approve more shares
-    if (msg.sender == admin && _spender == address(powerAddr)) {
-    var power = Power(powerAddr);
-    uint totalSupply = activeSupply.add(balances[powerAddr]).add(balances[address(this)]);
-      if (!power.burn(totalSupply, _value)) {
-        throw;
-      }
-      return;
-    }
-    allowed[msg.sender][_spender] = _value;
-    Approval(msg.sender, _spender, _value);
-  }
-
-  function transfer(address _to, uint _value) returns (bool) {
-    if (_value == 0) {
+  function transfer(address _to, uint _amountNtz) returns (bool) {
+    if (_amountNtz == 0) {
       return false;
     }
+    // sell tokens
     if (_to == address(this)) {
-      throw;
+      return sellTokens(_amountNtz);
     }
     // power up
     if (_to == powerAddr) {
-      var power = Power(powerAddr);
-      uint totalSupply = activeSupply.add(balances[powerAddr]).add(balances[address(this)]);
-      if (!power.up(msg.sender, _value, totalSupply)) {
-        throw;
-      }
+      return powerUp(_amountNtz);
     }
-    balances[msg.sender] = balances[msg.sender].sub(_value);
-    balances[_to] = balances[_to].add(_value);
-    Transfer(msg.sender, _to, _value);
+    balances[msg.sender] = balances[msg.sender].sub(_amountNtz);
+    balances[_to] = balances[_to].add(_amountNtz);
+    Transfer(msg.sender, _to, _amountNtz);
     return true;
   }
 
-  function transferFrom(address _from, address _to, uint _value) returns (bool) {
-    if (_from == _to || _to == address(this) || _value == 0) {
+  function transferFrom(address _from, address _to, uint _amountNtz) returns (bool) {
+    if (_from == _to || _to == address(this) || _to == powerAddr) {
       throw;
     }
-    if (_to == powerAddr) {
-      var power = Power(powerAddr);
-      uint totalSupply = activeSupply.add(balances[powerAddr]);
-      if (!power.up(_from, _value, totalSupply)) {
-        throw;
-      }
+    // claim ether
+    if (_from == address(this) && _amountNtz == 0) {
+      return claimEther(msg.sender, _to);
     }
-    balances[_to] = balances[_to].add(_value);
-    balances[_from] = balances[_from].sub(_value);
-    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
-    Transfer(_from, _to, _value);
+    if (_amountNtz == 0) {
+      return false;
+    }
+    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amountNtz);
+    balances[_from] = balances[_from].sub(_amountNtz);
+    balances[_to] = balances[_to].add(_amountNtz);
+    Transfer(_from, _to, _amountNtz);
     return true;
   }
 

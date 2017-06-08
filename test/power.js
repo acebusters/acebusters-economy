@@ -9,7 +9,7 @@ contract('Power', (accounts) => {
     const token = await Nutz.new(downtime);
     const powerAddr = await token.powerAddr.call();
     const power = Power.at(powerAddr);
-    await token.approve(powerAddr, 10000);
+    await token.dilutePower(10000);
     const authorizedShares = await power.totalSupply.call();
     assert.equal(authorizedShares.toNumber(), 10000, 'shares not authorized');
   });
@@ -21,7 +21,7 @@ contract('Power', (accounts) => {
     await token.moveCeiling(100);
     const powerAddr = await token.powerAddr.call();
     const power = Power.at(powerAddr);
-    await token.approve(powerAddr, 10000);
+    await token.dilutePower(10000);
     
     // get some tokens
     let txHash = web3.eth.sendTransaction({ gas: 200000, from: accounts[0], to: token.address, value: 10000000 });
