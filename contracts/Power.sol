@@ -38,7 +38,7 @@ contract Power is ERC20Basic {
   }
 
   function totalSupply() constant returns (uint256) {
-    return balances[this];
+    return balances[nutzAddr];
   }
 
   function Power(address _nutzAddr, uint _downtime) {
@@ -55,22 +55,26 @@ contract Power is ERC20Basic {
       throw;
     }
     // calculate amount that can be withdrawn according to time passed
-    uint expected = downs[_pos].total.sub((downs[_pos].total.mul(_now.sub(downs[_pos].start))).div(downtime));
-    if (downs[_pos].left <= expected) {
+    DownRequest req = downs[_pos];
+    uint timePassed = _now.sub(req.start);
+    if (timePassed > downtime) {
+     timePassed = downtime;
+    }
+    uint amountVested = req.total.mul(timePassed).div(downtime);
+    uint amountLeft = req.total.sub(amountVested);
+    if (req.left <= amountLeft) {
       throw;
     }
-    uint amountAbp = downs[_pos].left.sub(expected);
+    uint amountAbp = req.left.sub(amountLeft);
 
     // calculate token amount representing amount of power
     var nutzContract = ERC20(nutzAddr);
-    uint totalNtz = nutzContract.activeSupply().add(nutzContract.balanceOf(address(this)));
-    uint amountNtz = amountAbp.mul(totalNtz).div(balances[this]);
-
+    uint totalNtz = nutzContract.activeSupply().add(nutzContract.balanceOf(address(this))).add(nutzContract.balanceOf(nutzAddr));
+    uint amountNtz = amountAbp.mul(totalNtz).div(balances[nutzAddr]);
     // transfer power and tokens
-    balances[downs[_pos].owner] = balances[downs[_pos].owner].sub(amountAbp);
-    balances[nutzAddr] = balances[nutzAddr].add(amountAbp);
-    downs[_pos].left = expected;
-    if (!nutzContract.transfer(downs[_pos].owner, amountNtz)) {
+    balances[req.owner] = balances[req.owner].sub(amountAbp);
+    downs[_pos].left = amountLeft;
+    if (!nutzContract.transfer(req.owner, amountNtz)) {
       throw;
     }
     return true;
