@@ -1,23 +1,26 @@
 pragma solidity ^0.4.8;
 
-import "./Nutz.sol";
 import "./SafeMath.sol";
+import "./ERC20.sol";
 import "./ERC20Basic.sol";
 
 contract Power is ERC20Basic {
   using SafeMath for uint;
 
+  string public name = "Acebusters Power";
+  string public symbol = "ABP";
+  uint public decimals = 12;
+
   // time it should take to power down
   uint public downtime;
   // token contract address
   address public nutzAddr;
-  // maximum amount of power that can be given out
-  uint public maxPower;
-  // if this is active, investors need to have bal >= 1 to be able to invest
-  bool preemption;
+  // sum of all outstanding shares
+  uint public outstandingAbp;
 
   // all investors balances
   mapping (address => uint256) balances;
+  // balances[nutzAddr]  // stores authorized shares
 
   // data structure for withdrawals
   struct DownRequest {
@@ -34,22 +37,13 @@ contract Power is ERC20Basic {
     return balances[_holder];
   }
 
-  function Power(address _nutzAddr, uint _downtime, uint _initialSupply) {
-    nutzAddr = _nutzAddr;
-    downtime = _downtime;
-    totalSupply = _initialSupply;
-    // 100% of economy unassigned
-    balances[nutzAddr] = _initialSupply;
-    // have 10% of economy ownable by default
-    maxPower = _initialSupply.div(10);
-    // only accredited investors are allowed to power up
-    preemption = true;
+  function totalSupply() constant returns (uint256) {
+    return balances[this];
   }
 
-  function configure(uint _downtime, uint _maxPower, bool _preemption) {
+  function Power(address _nutzAddr, uint _downtime) {
+    nutzAddr = _nutzAddr;
     downtime = _downtime;
-    maxPower = _maxPower;
-    preemption = _preemption;
   }
 
   // executes a powerdown request
@@ -61,22 +55,22 @@ contract Power is ERC20Basic {
       throw;
     }
     // calculate amount that can be withdrawn according to time passed
-    uint expected = downs[_pos].total - ((downs[_pos].total * (_now - downs[_pos].start)) / downtime);
+    uint expected = downs[_pos].total.sub((downs[_pos].total.mul(_now.sub(downs[_pos].start))).div(downtime));
     if (downs[_pos].left <= expected) {
       throw;
     }
-    uint amountPower = downs[_pos].left.sub(expected);
+    uint amountAbp = downs[_pos].left.sub(expected);
 
     // calculate token amount representing amount of power
-    var nutz = Nutz(nutzAddr);
-    uint totalNtz = nutz.activeSupply().add(nutz.balanceOf(address(this)));
-    uint amountNtz = amountPower.mul(totalNtz).div(totalSupply);
+    var nutzContract = ERC20(nutzAddr);
+    uint totalNtz = nutzContract.activeSupply().add(nutzContract.balanceOf(address(this)));
+    uint amountNtz = amountAbp.mul(totalNtz).div(balances[this]);
 
     // transfer power and tokens
-    balances[downs[_pos].owner] = balances[downs[_pos].owner].sub(amountPower);
-    balances[nutzAddr] = balances[nutzAddr].add(amountPower);
+    balances[downs[_pos].owner] = balances[downs[_pos].owner].sub(amountAbp);
+    balances[nutzAddr] = balances[nutzAddr].add(amountAbp);
     downs[_pos].left = expected;
-    if (!nutz.transfer(downs[_pos].owner, amountNtz)) {
+    if (!nutzContract.transfer(downs[_pos].owner, amountNtz)) {
       throw;
     }
     return true;
@@ -91,35 +85,41 @@ contract Power is ERC20Basic {
     _;
   }
 
-  function accredit(address _investor) onlyNutzContract {
-    if (balances[_investor] == 0) {
-      balances[nutzAddr] -= 1;
-      balances[_investor] = 1;
+  function configure(uint _downtime) onlyNutzContract {
+    downtime = _downtime;
+  }
+
+  // this is called when NTZ are deposited into the burn pool
+  function burn(uint _totalSupplyBefore, uint _amount) onlyNutzContract returns (bool) {
+    if (balances[nutzAddr] == 0) {
+      // during the first capital increase, set some big number as authorized shares
+      balances[nutzAddr] = _totalSupplyBefore.add(_amount);
+    } else {
+      // in later increases, expand authorized shares at same rate like economy
+      balances[nutzAddr].mul(_totalSupplyBefore.add(_amount)).div(_totalSupplyBefore);
     }
+    return true;
   }
 
   // this is called when NTZ are deposited into the power pool
-  function up(address _sender, uint _value, uint _totalSupply) onlyNutzContract returns (bool) {
-    if (_value <= 0) {
-      throw;
+  function up(address _sender, uint _amountNtz, uint _totalSupply) onlyNutzContract returns (bool) {
+    if (_amountNtz <= 0) {
+      return false;
     }
-    if (preemption == true && balances[_sender] == 0) {
-      // only active investors are allowed to power up
-      // _sender is not an active investor
-      throw;
-    }
-    uint amount = _value.mul(totalSupply).div(_totalSupply);
-    if (balances[nutzAddr].sub(amount) < totalSupply.sub(maxPower)) {
+    uint authorizedShares = balances[nutzAddr];
+    uint amountAbp = _amountNtz.mul(authorizedShares).div(_totalSupply);
+    if (outstandingAbp + amountAbp > authorizedShares.div(2)) {
       // this powerup would assign more power to investors
       // than allowed by maxPower.
       throw;
     }
-    balances[nutzAddr] = balances[nutzAddr].sub(amount);
-    balances[_sender] = balances[_sender].add(amount);
+    outstandingAbp = outstandingAbp.add(amountAbp);
+    balances[_sender] = balances[_sender].add(amountAbp);
     return true;
   }
 
   // registers a powerdown request
+  // limit amount of powerdown per user
   function transfer(address _to, uint _amountPower) returns (bool success) {
     if (_to != nutzAddr) {
       throw;
@@ -130,9 +130,9 @@ contract Power is ERC20Basic {
     if (balances[msg.sender] < _amountPower) {
       throw;
     }
-    if (totalSupply - _amountPower > totalSupply) {
-      throw;
-    }
+//    if (balances[this] - _amountPower > balances[this]) {
+//      throw;
+//    }
 
     uint pos = downs.length++;
     downs[pos] = DownRequest(msg.sender, _amountPower, _amountPower, now);
