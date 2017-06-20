@@ -91,7 +91,6 @@ contract('Nutz', function(accounts) {
     await web3.eth.transactionMined(txHash);
     const balanceTknBefore = await token.balanceOf.call(accounts[0]);
     assert.equal(balanceTknBefore.toNumber(), amountWei / ceiling, 'token wasn\'t issued to account');
-
     await token.moveFloor(0);
     const floor = await token.floor.call();
     await token.moveCeiling(BYTES_32);

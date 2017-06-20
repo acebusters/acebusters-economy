@@ -29,7 +29,11 @@ contract Nutz is ERC20 {
   mapping (address => mapping (address => uint)) allowed;
   
   // the Token sale mechanism parameters:
+  // ceiling is the number of NTZ returned for 1 ETH
   uint public ceiling;
+  // floor is the number of NTZ needed, no receive 1 ETH back
+  // we say that floor is lower than ceiling, if the number of NTZ needed to sell
+  // to receive the same amount of ETH as used in purchase, is higher.
   uint public floor;
   address public admin;
   address public powerAddr;
@@ -122,14 +126,14 @@ contract Nutz is ERC20 {
   }
   
   function moveCeiling(uint _newCeiling) onlyAdmin {
-    if (_newCeiling < floor) {
+    if (_newCeiling > floor && floor > 0) {
         throw;
     }
     ceiling = _newCeiling;
   }
   
   function moveFloor(uint _newFloor) onlyAdmin {
-    if (_newFloor > ceiling) {
+    if (_newFloor < ceiling && ceiling < infinity && _newFloor > 0) {
         throw;
     }
     // moveFloor fails if the administrator tries to push the floor so low
