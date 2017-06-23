@@ -27,12 +27,12 @@ contract('Power', (accounts) => {
     let txHash = web3.eth.sendTransaction({ gas: 200000, from: accounts[0], to: token.address, value: 10000000 });
     await web3.eth.transactionMined(txHash);
     let ntzBal = await token.balanceOf.call(accounts[0]);
-    assert.equal(ntzBal.toNumber(), 100000, 'purchase failed');
+    assert.equal(ntzBal.toNumber(), 1000, 'purchase failed');
 
     // powerup these tokens and check shares
     await token.transfer(power.address, 200);
     let powBal = await power.balanceOf.call(accounts[0]);
-    assert.equal(powBal.toNumber(), 20, 'first power up failed');
+    assert.equal(powBal.toNumber(), 2000, 'first power up failed');
 
     // power up some tokens with other account
     txHash = web3.eth.sendTransaction({ gas: 200000, from: accounts[3], to: token.address, value: 10000000 });
@@ -40,18 +40,18 @@ contract('Power', (accounts) => {
     
     await token.transfer(power.address, 400, {from: accounts[3]});
     powBal = await power.balanceOf.call(accounts[3]);
-    assert.equal(powBal.toNumber(), 19, 'second power up failed');
+    assert.equal(powBal.toNumber(), 1666, 'second power up failed');
 
     // power down and check
     await power.transfer(token.address, 11);
     await power.downTickTest(0, (Date.now() / 1000 | 0) + downtime);
     powBal = await power.balanceOf.call(accounts[0]);
-    assert.equal(powBal.toNumber(), 9, 'power down failed in Power contract');
+    assert.equal(powBal.toNumber(), 1989, 'power down failed in Power contract');
     // check balances in token contract
     ntzBal = await token.balanceOf.call(accounts[0]);
-    assert.equal(ntzBal.toNumber(), 100020, 'power down failed in Nutz contract');
+    assert.equal(ntzBal.toNumber(), 803, 'power down failed in Nutz contract');
     const ts = await token.activeSupply.call();
-    assert.equal(ts.toNumber(), 200000, 'config failed.');
+    assert.equal(ts.toNumber(), 2000, 'config failed.');
   });
 
 });

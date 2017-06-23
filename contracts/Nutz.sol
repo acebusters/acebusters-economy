@@ -76,7 +76,9 @@ contract Nutz is ERC20 {
     if (floor == 0) {
       throw;
     }
-    uint amountEther = _amountToken.mul(floor);
+
+    // 1,000,000 is the resolution factor between NTZ and ETH
+    uint amountEther = _amountToken.mul(1000000).div(floor);
     // make sure investors' share shrinks with economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
       uint invShare = balances[powerAddr].mul(_amountToken).div(activeSupply);
@@ -139,9 +141,11 @@ contract Nutz is ERC20 {
     // moveFloor fails if the administrator tries to push the floor so low
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
-    uint newReserveNeeded = activeSupply.mul(_newFloor);
-    if (reserve < newReserveNeeded) {
-        throw;
+    if (_newFloor > 0) {
+      uint newReserveNeeded = activeSupply.mul(1000000).div(_newFloor);
+      if (reserve < newReserveNeeded) {
+          throw;
+      }
     }
     floor = _newFloor;
   }
@@ -154,7 +158,7 @@ contract Nutz is ERC20 {
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
     uint leftReserve = reserve.sub(_amountEther);
-    if (leftReserve < activeSupply.mul(floor)) {
+    if (leftReserve < activeSupply.mul(1000000).div(floor)) {
         throw;
     }
     reserve = reserve.sub(_amountEther);
@@ -188,7 +192,8 @@ contract Nutz is ERC20 {
     if (ceiling == infinity) {
       throw;
     }
-    uint amountToken = msg.value.div(ceiling);
+    // 1,000,000 is the resolution factor between NTZ and ETH
+    uint amountToken = msg.value.div(1000000).mul(ceiling);
     // avoid deposits that issue nothing
     // might happen with very large ceiling
     if (amountToken == 0) {

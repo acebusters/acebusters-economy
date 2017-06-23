@@ -3,6 +3,8 @@ const assertJump = require('./helpers/assertJump');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
 const BYTES_32 = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+const NTZ_DECIMALS = new BigNumber(10).pow(12);
+const RES_FAC = new BigNumber(10).pow(18-12);
 
 contract('Nutz', function(accounts) {
   
@@ -10,19 +12,19 @@ contract('Nutz', function(accounts) {
   it('should allow to purchase', async function() {
     // create token contract, default ceiling == floor
     const token = await Nutz.new(3600);
-    await token.moveCeiling(100);
+    await token.moveCeiling(30000);
     const ceiling = await token.ceiling.call();
     // purchase some tokens with ether
-    const amountWei = web3.toWei(1, 'ether');
-    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
+    const weiAmount = web3.toWei(1, 'ether');
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: weiAmount });
     await web3.eth.transactionMined(txHash);
     // check balance, supply and reserve
-    const balanceTkn = await token.balanceOf.call(accounts[0]);
-    assert.equal(balanceTkn.toNumber(), amountWei / ceiling, 'token wasn\'t issued to account');
-    const supplyTkn = await token.activeSupply.call();
-    assert.equal(supplyTkn.toNumber(), amountWei / ceiling, 'token wasn\'t issued');
-    const reserveWei = await token.reserve.call();
-    assert.equal(reserveWei.toNumber(), amountWei, 'ether wasn\'t sent to contract');
+    const babzBalance = await token.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
+    const babzSupply = await token.activeSupply.call();
+    assert.equal(babzSupply.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued');
+    const weiReserve = await token.reserve.call();
+    assert.equal(weiReserve.toNumber(), weiAmount, 'ether wasn\'t sent to contract');
   });
 
   it('should allow to sell', async function() {
@@ -32,53 +34,54 @@ contract('Nutz', function(accounts) {
     await token.moveCeiling(1000);
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
-    const amountWei = web3.toWei(1, 'ether');
-    const halfAmountWei = web3.toWei(0.5, 'ether');
-    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
+    const weiAmount = web3.toWei(1, 'ether');
+    const halfweiAmount = web3.toWei(0.5, 'ether');
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: weiAmount });
     await web3.eth.transactionMined(txHash);
-    let balanceTkn = await token.balanceOf.call(accounts[0]);
-    assert.equal(balanceTkn.toNumber(), amountWei / ceiling, 'token wasn\'t issued to account');
+    let babzBalance = await token.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance.toNumber(), ceiling.mul(weiAmount).div(RES_FAC).toNumber(), 'token wasn\'t issued to account');
     // sell half of the tokens
-    await token.transfer(token.address, balanceTkn.dividedBy(2));
+    await token.transfer(token.address, babzBalance.div(2));
     // check balance, supply
-    balanceTkn = await token.balanceOf.call(accounts[0]);
-    assert.equal(balanceTkn.toNumber(), halfAmountWei / floor, 'token wasn\'t deducted by sell');
-    const supplyTkn = await token.activeSupply.call();
-    assert.equal(supplyTkn.toNumber(), halfAmountWei / floor, 'token wasn\'t destroyed');
+    let newBabzBal = await token.balanceOf.call(accounts[0]);
+    assert.equal(newBabzBal.toNumber(), babzBalance.div(2).toNumber(), 'token wasn\'t deducted by sell');
+    const babzSupply = await token.activeSupply.call();
+    assert.equal(babzSupply.toNumber(), babzBalance.div(2).toNumber(), 'token wasn\'t destroyed');
     // check allocation and reserve
-    let allocationWei = await token.allowance.call(token.address, accounts[0]);
-    assert.equal(allocationWei.toNumber(), halfAmountWei, 'ether wasn\'t allocated for withdrawal');
-    const reserveWei = await token.reserve.call();
-    assert.equal(reserveWei.toNumber(), halfAmountWei, 'ether allocation wasn\'t deducted from reserve');
+    let weiAllocation = await token.allowance.call(token.address, accounts[0]);
+    assert.equal(weiAllocation.toString(), halfweiAmount, 'ether wasn\'t allocated for withdrawal');
+    const weiReserve = await token.reserve.call();
+    assert.equal(weiReserve.toString(), halfweiAmount, 'ether allocation wasn\'t deducted from reserve');
     // pull the ether from the account
     await token.transferFrom(token.address, accounts[0], 0);
-    allocationWei = await token.allowance.call(token.address, accounts[0]);
-    assert.equal(allocationWei.toNumber(), 0, 'allocation wasn\'t payed out.');
+    weiAllocation = await token.allowance.call(token.address, accounts[0]);
+    assert.equal(weiAllocation.toNumber(), 0, 'allocation wasn\'t payed out.');
   });
 
   it('allocate_funds_to_beneficiary and claim_revenue', async function() {
     // create token contract, default ceiling == floor
     const token = await Nutz.new(0);
     await token.moveCeiling(1500);
+    await token.moveFloor(3000);
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
     assert.equal(ceiling.toNumber(), 1500, 'setting ceiling failed');
-    const amountWei = web3.toWei(new BigNumber(1), 'ether');
-    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
+    const weiAmount = web3.toWei(new BigNumber(1), 'ether');
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: weiAmount });
     await web3.eth.transactionMined(txHash);
-    const reserveWei = await token.reserve.call();
-    assert.equal(reserveWei.toNumber(), amountWei.toNumber(), 'reserve incorrect');
-    const balanceTkn = await token.balanceOf.call(accounts[0]);
-    assert.equal(balanceTkn.toNumber(), amountWei.dividedBy(ceiling).floor().toNumber(), 'token wasn\'t issued to account');
+    const weiReserve = await token.reserve.call();
+    assert.equal(weiReserve.toNumber(), weiAmount.toNumber(), 'reserve incorrect');
+    const babzBalance = await token.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance.toNumber(), ceiling.mul(weiAmount).div(RES_FAC).toNumber(), 'token wasn\'t issued to account');
 
-    const revenueWei = amountWei.minus(balanceTkn.times(floor));
-    await token.allocateEther(revenueWei, accounts[1]);
-    let allocatedWei = await token.allowance.call(token.address, accounts[1]);
-    assert.equal(allocatedWei.toNumber(), revenueWei, 'ether wasn\'t allocated to beneficiary');
+    const weiRevenue = weiAmount.minus(babzBalance.div(floor).mul(RES_FAC));
+    await token.allocateEther(weiRevenue, accounts[1]);
+    let weiAllocated = await token.allowance.call(token.address, accounts[1]);
+    assert.equal(weiAllocated.toNumber(), weiRevenue.toNumber(), 'ether wasn\'t allocated to beneficiary');
     // pull the ether from the account
     await token.transferFrom(token.address, accounts[1], 0, { from: accounts[1] });
-    allocatedWei = await token.allowance.call(token.address, accounts[1]);
-    assert.equal(allocatedWei.toNumber(), 0, 'allocation wasn\'t payed out.');
+    weiAllocated = await token.allowance.call(token.address, accounts[1]);
+    assert.equal(weiAllocated.toNumber(), 0, 'allocation wasn\'t payed out.');
   });
 
   it('should handle The sale administrator sets floor = 0, ceiling = infinity', async function() {
@@ -86,11 +89,11 @@ contract('Nutz', function(accounts) {
     const token = await Nutz.new(0);
     await token.moveCeiling(100);
     let ceiling = await token.ceiling.call();
-    const amountWei = web3.toWei(1, 'ether');
-    let txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
+    const weiAmount = web3.toWei(1, 'ether');
+    let txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: weiAmount });
     await web3.eth.transactionMined(txHash);
-    const balanceTknBefore = await token.balanceOf.call(accounts[0]);
-    assert.equal(balanceTknBefore.toNumber(), amountWei / ceiling, 'token wasn\'t issued to account');
+    const babzBalanceBefore = await token.balanceOf.call(accounts[0]);
+    assert.equal(babzBalanceBefore.toNumber(), ceiling.mul(weiAmount).div(RES_FAC).toNumber(), 'token wasn\'t issued to account');
     await token.moveFloor(0);
     const floor = await token.floor.call();
     await token.moveCeiling(BYTES_32);
@@ -99,17 +102,17 @@ contract('Nutz', function(accounts) {
     assert.equal(ceiling.toNumber(), BYTES_32, 'setting ceiling failed');
     // try purchasing some tokens with ether
     try {
-      txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
+      txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: weiAmount });
       await web3.eth.transactionMined(txHash);
     } catch(error) {
       assertJump(error);
       // check balance, supply and reserve
-      const balanceTknAfter = await token.balanceOf.call(accounts[0]);
-      assert.equal(balanceTknAfter.toNumber(), balanceTknBefore, 'balance should stay same after failed purchase');
-      const supplyTkn = await token.activeSupply.call();
-      assert.equal(supplyTkn.toNumber(), balanceTknBefore, 'activeSupply should stay same after failed purchase');
-      const reserveWei = await token.reserve.call();
-      assert.equal(reserveWei.toNumber(), amountWei, 'ether should not have been deposited');
+      const babzBalanceAfter = await token.balanceOf.call(accounts[0]);
+      assert.equal(babzBalanceAfter.toNumber(), babzBalanceBefore, 'balance should stay same after failed purchase');
+      const babzSupply = await token.activeSupply.call();
+      assert.equal(babzSupply.toNumber(), babzBalanceBefore, 'activeSupply should stay same after failed purchase');
+      const weiReserve = await token.reserve.call();
+      assert.equal(weiReserve.toNumber(), weiAmount, 'ether should not have been deposited');
       return;
     }
     assert.fail('should have thrown before');
@@ -118,13 +121,14 @@ contract('Nutz', function(accounts) {
   it('the sale administrator can’t raise the floor price if doing so would make it unable to purchase all of the tokens at the floor price', async function() {
     // create contract and buy some tokens
     const token = await Nutz.new(0);
-    await token.moveCeiling(100);
+    await token.moveCeiling(4000);
     let ceiling = await token.ceiling.call();
-    const amountWei = web3.toWei(1, 'ether');
-    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
+    const weiAmount = web3.toWei(1, 'ether');
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: weiAmount });
     await web3.eth.transactionMined(txHash);
-    let supplyTkn = await token.activeSupply.call(accounts[0]);
-    assert.equal(supplyTkn.toNumber(), amountWei / ceiling, 'amount wasn\'t issued to account');
+    let babzSupply = await token.activeSupply.call(accounts[0]);
+    const weiReserve = await token.reserve.call();
+    assert.equal(babzSupply.toNumber(), ceiling.mul(weiAmount).div(RES_FAC).toNumber(), 'amount wasn\'t issued to account');
     // move ceiling so we can move floor
     await token.moveCeiling(2000);
     ceiling = await token.ceiling.call();
@@ -146,18 +150,18 @@ contract('Nutz', function(accounts) {
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
     assert.equal(ceiling.toNumber(), 1500, 'setting ceiling failed');
-    const amountWei = web3.toWei(new BigNumber(1), 'ether');
-    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
+    const weiAmount = web3.toWei(new BigNumber(1), 'ether');
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: weiAmount });
     await web3.eth.transactionMined(txHash);
-    const reserveWei = await token.reserve.call();
-    assert.equal(reserveWei.toNumber(), amountWei.toNumber(), 'reserve incorrect');
-    const balanceTkn = await token.balanceOf.call(accounts[0]);
-    assert.equal(balanceTkn.toNumber(), amountWei.dividedBy(ceiling).floor().toNumber(), 'token wasn\'t issued to account');
+    const weiReserve = await token.reserve.call();
+    assert.equal(weiReserve.toNumber(), weiAmount.toNumber(), 'reserve incorrect');
+    const babzBalance = await token.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance.toNumber(), ceiling.mul(weiAmount).div(RES_FAC).toNumber(), 'token wasn\'t issued to account');
 
-    const revenueWei = amountWei.minus(balanceTkn.times(floor));
-    const doubleRevenueWei = revenueWei.times(2);
+    const weiRevenue = weiAmount.minus(babzBalance.times(floor));
+    const doubleweiRevenue = weiRevenue.times(2);
     try {
-      await token.allocateEther(doubleRevenueWei, accounts[1]);
+      await token.allocateEther(doubleweiRevenue, accounts[1]);
     } catch(error) {
       return assertJump(error);
     }
@@ -169,20 +173,20 @@ contract('Nutz', function(accounts) {
     const token = await Nutz.new(0);
     await token.moveCeiling(100);
     const ceiling = await token.ceiling.call();
-    const amountWei = web3.toWei(1, 'ether');
-    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: amountWei });
+    const weiAmount = web3.toWei(1, 'ether');
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: weiAmount });
     await web3.eth.transactionMined(txHash);
-    let balanceTkn = await token.balanceOf.call(accounts[0]);
-    assert.equal(balanceTkn.toNumber(), amountWei / ceiling.toNumber(), 'amount wasn\'t issued to account');
+    let babzBalance = await token.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance.toNumber(), ceiling.mul(weiAmount).div(RES_FAC).toNumber(), 'amount wasn\'t issued to account');
     // transfer token to other account
-    const halfBalanceTkn = balanceTkn.dividedBy(2);
-    let transfer = await token.transfer(accounts[1], halfBalanceTkn);
+    const halfbabzBalance = babzBalance.dividedBy(2);
+    let transfer = await token.transfer(accounts[1], halfbabzBalance);
 
     // check balances of sender and recepient
-    const newBalanceTkn = await token.balanceOf(accounts[0]);
-    assert.equal(newBalanceTkn.toNumber(), halfBalanceTkn.toNumber(), 'amount hasn\'t been transfered');
-    balanceTkn = await token.balanceOf(accounts[1]);
-    assert.equal(balanceTkn.toNumber(), halfBalanceTkn.toNumber(), 'amount hasn\'t been received');
+    const newbabzBalance = await token.balanceOf(accounts[0]);
+    assert.equal(newbabzBalance.toNumber(), halfbabzBalance.toNumber(), 'amount hasn\'t been transfered');
+    babzBalance = await token.balanceOf(accounts[1]);
+    assert.equal(babzBalance.toNumber(), halfbabzBalance.toNumber(), 'amount hasn\'t been received');
   });
 
   it('should throw an error when trying to transfer more than balance', async function() {
