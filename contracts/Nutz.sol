@@ -16,9 +16,16 @@ contract Nutz is ERC20 {
   event Sell(address indexed seller, uint value);
   
   string public name = "Acebusters Nutz";
+  // acebusters units:
+  // 10^12 - Nutz   (NTZ)
+  // 10^9 - Jonyz
+  // 10^6 - Helcz
+  // 10^3 - Pascalz
+  // 10^0 - Babz
   string public symbol = "NTZ";
   uint public decimals = 12;
-  uint infinity = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+  uint INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+  uint BABBAGE = 1000000;   // 1 BABBAGE equals 1,000,000 WEI, used as price factor
 
   // contract's ether balance, except all ether parked to be withdrawn
   uint public reserve;
@@ -58,9 +65,9 @@ contract Nutz is ERC20 {
   function Nutz(uint _downTime) {
       admin = msg.sender;
       // initial purchase price
-      ceiling = infinity;
+      ceiling = 0;
       // initial sale price
-      floor = 0;
+      floor = INFINITY;
       powerAddr = new Power(address(this), _downTime);
   }
 
@@ -73,16 +80,15 @@ contract Nutz is ERC20 {
   // ############################################
   
   function sellTokens(uint _amountToken) internal returns (bool) {
-    if (floor == 0) {
+    if (floor == INFINITY) {
       throw;
     }
 
-    // 1,000,000 is the resolution factor between NTZ and ETH
-    uint amountEther = _amountToken.mul(1000000).div(floor);
-    // make sure investors' share shrinks with economy
+    uint amountEther = _amountToken.mul(BABBAGE).div(floor);
+    // make sure power pool shrinks proportional to economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint invShare = balances[powerAddr].mul(_amountToken).div(activeSupply);
-      balances[powerAddr] = balances[powerAddr].sub(invShare);
+      uint powerShare = balances[powerAddr].mul(_amountToken).div(activeSupply);
+      balances[powerAddr] = balances[powerAddr].sub(powerShare);
     }
     activeSupply = activeSupply.sub(_amountToken);
     balances[msg.sender] = balances[msg.sender].sub(_amountToken);
@@ -128,21 +134,21 @@ contract Nutz is ERC20 {
   }
   
   function moveCeiling(uint _newCeiling) onlyAdmin {
-    if (_newCeiling > floor && floor > 0) {
+    if (_newCeiling > floor) {
         throw;
     }
     ceiling = _newCeiling;
   }
   
   function moveFloor(uint _newFloor) onlyAdmin {
-    if (_newFloor < ceiling && ceiling < infinity && _newFloor > 0) {
+    if (_newFloor < ceiling) {
         throw;
     }
     // moveFloor fails if the administrator tries to push the floor so low
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     if (_newFloor > 0) {
-      uint newReserveNeeded = activeSupply.mul(1000000).div(_newFloor);
+      uint newReserveNeeded = activeSupply.mul(BABBAGE).div(_newFloor);
       if (reserve < newReserveNeeded) {
           throw;
       }
@@ -158,7 +164,7 @@ contract Nutz is ERC20 {
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
     uint leftReserve = reserve.sub(_amountEther);
-    if (leftReserve < activeSupply.mul(1000000).div(floor)) {
+    if (leftReserve < activeSupply.mul(BABBAGE).div(floor)) {
         throw;
     }
     reserve = reserve.sub(_amountEther);
@@ -188,22 +194,21 @@ contract Nutz is ERC20 {
     if (msg.value == 0) {
       return;
     }
-    // disable purchases if ceiling set to infinity
-    if (ceiling == infinity) {
+    // disable purchases if ceiling set to 0
+    if (ceiling == 0) {
       throw;
     }
-    // 1,000,000 is the resolution factor between NTZ and ETH
-    uint amountToken = msg.value.div(1000000).mul(ceiling);
+    uint amountToken = msg.value.mul(ceiling).div(BABBAGE);
     // avoid deposits that issue nothing
     // might happen with very large ceiling
     if (amountToken == 0) {
       throw;
     }
     reserve = reserve.add(msg.value);
-    // make sure investors' share grows with economy
+    // make sure power pool grows proportional to economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint invShare = balances[powerAddr].mul(amountToken).div(activeSupply);
-      balances[powerAddr] = balances[powerAddr].add(invShare);
+      uint powerShare = balances[powerAddr].mul(amountToken).div(activeSupply);
+      balances[powerAddr] = balances[powerAddr].add(powerShare);
     }
     activeSupply = activeSupply.add(amountToken);
     balances[msg.sender] = balances[msg.sender].add(amountToken);
