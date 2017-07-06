@@ -111,15 +111,27 @@ contract Nutz is ERC20 {
     return true;
   }
 
-  function powerUp(uint _amountNtz) internal returns (bool) {
+  function _transfer(address _from, address _to, uint _amountNtz) internal returns (bool) {
+    // power up
+    if (_to == powerAddr) {
+      _powerUp(_from, _amountNtz);
+      activeSupply = activeSupply.sub(_amountNtz);
+    }
+    if (_from == powerAddr) {
+      activeSupply = activeSupply.add(_amountNtz);
+    }
+    balances[_from] = balances[_from].sub(_amountNtz);
+    balances[_to] = balances[_to].add(_amountNtz);
+    Transfer(_from, _to, _amountNtz);
+    return true;
+  }
+
+  function _powerUp(address _from, uint _amountNtz) internal {
     var power = Power(powerAddr);
     uint totalSupply = activeSupply.add(balances[powerAddr]).add(balances[address(this)]);
-    if (!power.up(msg.sender, _amountNtz, totalSupply)) {
+    if (!power.up(_from, _amountNtz, totalSupply)) {
       throw;
     }
-    balances[msg.sender] = balances[msg.sender].sub(_amountNtz);
-    balances[powerAddr] = balances[powerAddr].add(_amountNtz);
-    return true;
   }
 
 
@@ -234,18 +246,11 @@ contract Nutz is ERC20 {
     if (_amountNtz == 0) {
       return false;
     }
-    Transfer(msg.sender, _to, _amountNtz);
     // sell tokens
     if (_to == address(this)) {
       return sellTokens(_amountNtz);
     }
-    // power up
-    if (_to == powerAddr) {
-      return powerUp(_amountNtz);
-    }
-    balances[msg.sender] = balances[msg.sender].sub(_amountNtz);
-    balances[_to] = balances[_to].add(_amountNtz);
-    return true;
+    return _transfer(msg.sender, _to, _amountNtz);
   }
 
   function transferFrom(address _from, address _to, uint _amountNtz) returns (bool) {
@@ -260,10 +265,7 @@ contract Nutz is ERC20 {
       return false;
     }
     allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amountNtz);
-    balances[_from] = balances[_from].sub(_amountNtz);
-    balances[_to] = balances[_to].add(_amountNtz);
-    Transfer(_from, _to, _amountNtz);
-    return true;
+    return _transfer(_from, _to, _amountNtz);
   }
 
 }
