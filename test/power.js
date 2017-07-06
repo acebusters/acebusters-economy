@@ -17,7 +17,7 @@ contract('Power', (accounts) => {
     assert.equal(authorizedShares.toNumber(), 10000, 'shares not authorized');
   });
 
-  it("should allow to power up and power down.", async () => {
+  it("should allow to power up and power down with no burn.", async () => {
     const DOWNTIME = 12*7*24*3600; // 3 month
     const WEI_AMOUNT = web3.toWei(1, 'ether');
     const CEILING_PRICE = 30000;
@@ -32,6 +32,7 @@ contract('Power', (accounts) => {
     // get some NTZ for 1 ETH
     const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: accounts[0], to: token.address, value: WEI_AMOUNT });
     await web3.eth.transactionMined(txHash1);
+    await token.dilutePower(0);
     const babzBalAlice = await token.balanceOf.call(ALICE);
     const expectedBal = (WEI_AMOUNT * CEILING_PRICE) / PRICE_FACTOR.toNumber();
     assert.equal(babzBalAlice.toNumber(), expectedBal, 'purchase failed');

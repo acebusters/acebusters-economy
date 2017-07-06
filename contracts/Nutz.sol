@@ -185,10 +185,12 @@ contract Nutz is ERC20 {
 
   function dilutePower(uint _amountNtz) onlyAdmin {
     var power = Power(powerAddr);
-    uint totalSupply = activeSupply.add(balances[powerAddr]).add(balances[address(this)]);
+    uint burn = balances[address(this)];
+    uint totalSupply = activeSupply.add(balances[powerAddr]).add(burn);
     if (!power.burn(totalSupply, _amountNtz)) {
       throw;
     }
+    balances[address(this)] = burn.add(_amountNtz);
   }
 
 

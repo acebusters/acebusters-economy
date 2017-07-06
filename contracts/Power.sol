@@ -80,12 +80,6 @@ contract Power is ERC20Basic {
   // ########### INTERNAL FUNCTIONS #############
   // ############################################
 
-  // init power
-  function _init(uint _size) internal {
-    // during the first capital increase, set some big number as authorized shares
-    balances[nutzAddr] = _size;
-  }
-
   // executes a powerdown request
   function _downTick(uint _pos, uint _now) internal returns (bool success) {
     uint amountAbp = vestedDown(_pos, _now);
@@ -125,7 +119,8 @@ contract Power is ERC20Basic {
   // this is called when NTZ are deposited into the burn pool
   function burn(uint _totalBabzBefore, uint _amountBabz) onlyNutzContract returns (bool) {
     if (totalSupply() == 0) {
-      _init(_totalBabzBefore.add(_amountBabz));
+      // during the first capital increase, set some big number as authorized shares
+      balances[nutzAddr] = _totalBabzBefore.add(_amountBabz);
     } else {
       // in later increases, expand authorized shares at same rate like economy
       totalSupply().mul(_totalBabzBefore.add(_amountBabz)).div(_totalBabzBefore);
@@ -139,7 +134,7 @@ contract Power is ERC20Basic {
       return false;
     }
     if (totalSupply() == 0) {
-      _init(_amountNtz.add(_totalBabz));
+      throw;
     }
     uint amountAbp = _amountNtz.mul(totalSupply()).div(_totalBabz);
     if (outstandingAbp + amountAbp > totalSupply().div(2)) {
