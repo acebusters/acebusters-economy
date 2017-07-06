@@ -56,7 +56,8 @@ contract('Power', (accounts) => {
     const ntz13k = NTZ_DECIMALS.mul(13500);
     assert.equal(ntz13k.toNumber(), babzTotal2.div(5).toNumber());
     // powerup these tokens and check shares
-    await token.transfer(power.address, ntz13k, {from: BOB});
+    await token.approve(accounts[2], ntz13k, {from: BOB});
+    await token.transferFrom(BOB, power.address, ntz13k, {from: accounts[2]});
     const powBalBob = await power.balanceOf.call(BOB);
     assert.equal(powBalBob.toNumber(), powTotal.div(5).toNumber(), 'second power up failed');
     

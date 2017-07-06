@@ -27,6 +27,7 @@ contract Nutz is ERC20 {
   uint INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
   uint BABBAGE = 1000000;   // 1 BABBAGE equals 1,000,000 WEI, used as price factor
 
+  uint256 actSupply;
   // contract's ether balance, except all ether parked to be withdrawn
   uint public reserve;
   // balanceOf[powerAddr] returns power pool
@@ -42,7 +43,7 @@ contract Nutz is ERC20 {
   // we say that floor is lower than ceiling, if the number of NTZ needed to sell
   // to receive the same amount of ETH as used in purchase, is higher.
   uint public floor;
-  address public admin;
+  address[] public admins;
   address public powerAddr;
 
   // returns balance
@@ -52,7 +53,11 @@ contract Nutz is ERC20 {
 
   function totalSupply() constant returns (uint256) {
     // active supply + power pool + burn pool
-    return activeSupply.add(balances[powerAddr]).add(balances[address(this)]);
+    return actSupply.add(balances[powerAddr]).add(balances[address(this)]);
+  }
+
+  function activeSupply() constant returns (uint256) {
+    return actSupply;
   }
 
   // return remaining allowance
@@ -63,12 +68,13 @@ contract Nutz is ERC20 {
   }
   
   function Nutz(uint _downTime) {
-      admin = msg.sender;
-      // initial purchase price
-      ceiling = 0;
-      // initial sale price
-      floor = INFINITY;
-      powerAddr = new Power(address(this), _downTime);
+    admins.length = 1;
+    admins[0] = msg.sender;
+    // initial purchase price
+    ceiling = 0;
+    // initial sale price
+    floor = INFINITY;
+    powerAddr = new Power(address(this), _downTime);
   }
 
 
@@ -87,10 +93,10 @@ contract Nutz is ERC20 {
     uint amountEther = _amountToken.mul(BABBAGE).div(floor);
     // make sure power pool shrinks proportional to economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint powerShare = balances[powerAddr].mul(_amountToken).div(activeSupply);
+      uint powerShare = balances[powerAddr].mul(_amountToken).div(actSupply);
       balances[powerAddr] = balances[powerAddr].sub(powerShare);
     }
-    activeSupply = activeSupply.sub(_amountToken);
+    actSupply = actSupply.sub(_amountToken);
     balances[msg.sender] = balances[msg.sender].sub(_amountToken);
     reserve = reserve.sub(amountEther);
     allowed[address(this)][msg.sender] = allowed[address(this)][msg.sender].add(amountEther);
@@ -115,10 +121,10 @@ contract Nutz is ERC20 {
     // power up
     if (_to == powerAddr) {
       _powerUp(_from, _amountNtz);
-      activeSupply = activeSupply.sub(_amountNtz);
+      actSupply = actSupply.sub(_amountNtz);
     }
     if (_from == powerAddr) {
-      activeSupply = activeSupply.add(_amountNtz);
+      actSupply = actSupply.add(_amountNtz);
     }
     balances[_from] = balances[_from].sub(_amountNtz);
     balances[_to] = balances[_to].add(_amountNtz);
@@ -128,10 +134,7 @@ contract Nutz is ERC20 {
 
   function _powerUp(address _from, uint _amountNtz) internal {
     var power = Power(powerAddr);
-    uint totalSupply = activeSupply.add(balances[powerAddr]).add(balances[address(this)]);
-    if (!power.up(_from, _amountNtz, totalSupply)) {
-      throw;
-    }
+    power.up(_from, _amountNtz, totalSupply());
   }
 
 
@@ -139,20 +142,50 @@ contract Nutz is ERC20 {
   // ########### ADMIN FUNCTIONS ################
   // ############################################
 
-  modifier onlyAdmin() {
-    if (msg.sender == admin) {
-      _;
+  modifier onlyAdmins() {
+    for (uint i = 0; i < admins.length; i++) {
+      if (msg.sender == admins[i]) {
+        _;
+      }
     }
   }
+
+  function addAdmin(address _admin) onlyAdmins {
+    for (uint i = 0; i < admins.length; i++) {
+      if (_admin == admins[i]) {
+        throw;
+      }
+    }
+    if (admins.length > 10) {
+      throw;
+    }
+    uint pos = admins.length++;
+    admins[pos] = _admin;
+  }
+
+  function removeAdmin(address _admin) onlyAdmins {
+    uint256 pos = 1337;
+    for (uint i = 0; i < admins.length; i++) {
+      if (_admin == admins[i]) {
+        pos = i;
+      }
+    }
+    // if not last element, switch with last
+    if (pos < admins.length - 1) {
+      admins[pos] = admins[admins.length - 1];
+    }
+    // then cut off the tail
+    admins.length--;
+  }
   
-  function moveCeiling(uint _newCeiling) onlyAdmin {
+  function moveCeiling(uint _newCeiling) onlyAdmins {
     if (_newCeiling > floor) {
         throw;
     }
     ceiling = _newCeiling;
   }
   
-  function moveFloor(uint _newFloor) onlyAdmin {
+  function moveFloor(uint _newFloor) onlyAdmins {
     if (_newFloor < ceiling) {
         throw;
     }
@@ -160,7 +193,7 @@ contract Nutz is ERC20 {
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     if (_newFloor > 0) {
-      uint newReserveNeeded = activeSupply.mul(BABBAGE).div(_newFloor);
+      uint newReserveNeeded = actSupply.mul(BABBAGE).div(_newFloor);
       if (reserve < newReserveNeeded) {
           throw;
       }
@@ -168,7 +201,7 @@ contract Nutz is ERC20 {
     floor = _newFloor;
   }
 
-  function allocateEther(uint _amountEther, address _beneficiary) onlyAdmin {
+  function allocateEther(uint _amountEther, address _beneficiary) onlyAdmins {
     if (_amountEther == 0) {
         return;
     }
@@ -176,17 +209,17 @@ contract Nutz is ERC20 {
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
     uint leftReserve = reserve.sub(_amountEther);
-    if (leftReserve < activeSupply.mul(BABBAGE).div(floor)) {
+    if (leftReserve < actSupply.mul(BABBAGE).div(floor)) {
         throw;
     }
     reserve = reserve.sub(_amountEther);
     allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountEther);
   }
 
-  function dilutePower(uint _amountNtz) onlyAdmin {
+  function dilutePower(uint _amountNtz) onlyAdmins {
     var power = Power(powerAddr);
     uint burn = balances[address(this)];
-    uint totalSupply = activeSupply.add(balances[powerAddr]).add(burn);
+    uint totalSupply = actSupply.add(balances[powerAddr]).add(burn);
     if (!power.burn(totalSupply, _amountNtz)) {
       throw;
     }
@@ -221,10 +254,10 @@ contract Nutz is ERC20 {
     reserve = reserve.add(msg.value);
     // make sure power pool grows proportional to economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint powerShare = balances[powerAddr].mul(amountToken).div(activeSupply);
+      uint powerShare = balances[powerAddr].mul(amountToken).div(actSupply);
       balances[powerAddr] = balances[powerAddr].add(powerShare);
     }
-    activeSupply = activeSupply.add(amountToken);
+    actSupply = actSupply.add(amountToken);
     balances[msg.sender] = balances[msg.sender].add(amountToken);
     Purchase(msg.sender, amountToken);
   }
@@ -256,7 +289,7 @@ contract Nutz is ERC20 {
   }
 
   function transferFrom(address _from, address _to, uint _amountNtz) returns (bool) {
-    if (_from == _to || _to == address(this) || _to == powerAddr) {
+    if (_from == _to || _to == address(this)) {
       throw;
     }
     // claim ether

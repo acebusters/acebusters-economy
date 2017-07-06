@@ -10,13 +10,16 @@ contract Power is ERC20Basic {
   string public name = "Acebusters Power";
   string public symbol = "ABP";
   uint public decimals = 12;
+  
 
   // time it should take to power down
   uint public downtime;
   // token contract address
-  address public nutzAddr;
+  address nutzAddr;
   // sum of all outstanding shares
-  uint outstandingAbp;
+  uint outstandingPow;
+  // when powering up, at least totalSupply/minShare Power should be claimed
+  uint minShare = 10000;
 
   // all holder balances
   mapping (address => uint256) balances;
@@ -42,7 +45,7 @@ contract Power is ERC20Basic {
   }
 
   function activeSupply() constant returns (uint256) {
-    return outstandingAbp;
+    return outstandingPow;
   }
 
   function totalSupply() constant returns (uint256) {
@@ -82,21 +85,36 @@ contract Power is ERC20Basic {
 
   // executes a powerdown request
   function _downTick(uint _pos, uint _now) internal returns (bool success) {
-    uint amountAbp = vestedDown(_pos, _now);
-    if (amountAbp == 0) {
+    uint amountPow = vestedDown(_pos, _now);
+    if (amountPow == 0) {
       throw;
     }
     DownRequest req = downs[_pos];
 
-    // calculate token amount representing amount of power
+    // prevent power down in tiny steps
+    uint minStep = req.total.div(10);
+    if (amountPow < minStep && req.left > minStep) {
+      throw;
+    }
+
+    // calculate token amount representing share of power
     var nutzContract = ERC20(nutzAddr);
-    uint totalBabz = nutzContract.activeSupply().add(nutzContract.balanceOf(address(this))).add(nutzContract.balanceOf(nutzAddr));
-    uint amountBabz = amountAbp.mul(totalBabz).div(totalSupply());
+    uint totalBabz = nutzContract.totalSupply();
+    uint amountBabz = amountPow.mul(totalBabz).div(totalSupply());
     // transfer power and tokens
-    balances[req.owner] = balances[req.owner].sub(amountAbp);
-    downs[_pos].left = downs[_pos].left.sub(amountAbp);
+    balances[req.owner] = balances[req.owner].sub(amountPow);
+    req.left = req.left.sub(amountPow);
     if (!nutzContract.transfer(req.owner, amountBabz)) {
       throw;
+    }
+    // down request completed
+    if (req.left == 0) {
+      // if not last element, switch with last
+      if (_pos < downs.length - 1) {
+        downs[_pos] = downs[downs.length - 1];
+      }
+      // then cut off the tail
+      downs.length--;
     }
     return true;
   }
@@ -129,21 +147,17 @@ contract Power is ERC20Basic {
   }
 
   // this is called when NTZ are deposited into the power pool
-  function up(address _sender, uint _amountNtz, uint _totalBabz) onlyNutzContract returns (bool) {
-    if (_amountNtz == 0) {
-      return false;
-    }
-    if (totalSupply() == 0) {
+  function up(address _sender, uint _amountBabz, uint _totalBabz) onlyNutzContract {
+    if (totalSupply() == 0 || _amountBabz == 0 || _totalBabz == 0 || _amountBabz < _totalBabz.div(minShare)) {
       throw;
     }
-    uint amountAbp = _amountNtz.mul(totalSupply()).div(_totalBabz);
-    if (outstandingAbp + amountAbp > totalSupply().div(2)) {
+    uint amountPow = _amountBabz.mul(totalSupply()).div(_totalBabz);
+    if (outstandingPow + amountPow > totalSupply().div(2)) {
       // this powerup would assign more power to power holders than 50% of total NTZ.
       throw;
     }
-    outstandingAbp = outstandingAbp.add(amountAbp);
-    balances[_sender] = balances[_sender].add(amountAbp);
-    return true;
+    outstandingPow = outstandingPow.add(amountPow);
+    balances[_sender] = balances[_sender].add(amountPow);
   }
 
 
@@ -154,21 +168,15 @@ contract Power is ERC20Basic {
   // ############################################
 
   // registers a powerdown request
-  // TODO: limit amount of powerdown per user
   function transfer(address _to, uint _amountPower) returns (bool success) {
+    // make Power not transferable
     if (_to != nutzAddr) {
       throw;
     }
-    if (_amountPower <= 0) {
+    // prevent powering down tiny amounts or spending more than there is
+    if (balances[msg.sender] < _amountPower || _amountPower <= totalSupply().div(minShare)) {
       throw;
     }
-    if (balances[msg.sender] < _amountPower) {
-      throw;
-    }
-    // check overflow
-//    if (balances[this] - _amountPower > balances[this]) {
-//      throw;
-//    }
 
     uint pos = downs.length++;
     downs[pos] = DownRequest(msg.sender, _amountPower, _amountPower, now);
@@ -179,12 +187,12 @@ contract Power is ERC20Basic {
       return _downTick(_pos, now);
   }
 
-// !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!
-// REMOVE THIS BEFORE DEPLOYMENT!!!!
-// needed for accelerated time testing
-    function downTickTest(uint _pos, uint _now) returns (bool success) {
-        return _downTick(_pos, _now);
-    }
-// !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!
+  // !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!
+  // REMOVE THIS BEFORE DEPLOYMENT!!!!
+  // needed for accelerated time testing
+  function downTickTest(uint _pos, uint _now) returns (bool success) {
+    return _downTick(_pos, _now);
+  }
+  // !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!
 
 }
