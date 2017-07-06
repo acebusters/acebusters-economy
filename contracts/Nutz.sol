@@ -1,4 +1,4 @@
-pragma solidity ^0.4.8;
+pragma solidity ^0.4.11;
 
 import "./SafeMath.sol";
 import "./ERC20.sol";
@@ -234,6 +234,7 @@ contract Nutz is ERC20 {
     if (_amountNtz == 0) {
       return false;
     }
+    Transfer(msg.sender, _to, _amountNtz);
     // sell tokens
     if (_to == address(this)) {
       return sellTokens(_amountNtz);
@@ -244,7 +245,6 @@ contract Nutz is ERC20 {
     }
     balances[msg.sender] = balances[msg.sender].sub(_amountNtz);
     balances[_to] = balances[_to].add(_amountNtz);
-    Transfer(msg.sender, _to, _amountNtz);
     return true;
   }
 
