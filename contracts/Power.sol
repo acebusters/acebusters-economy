@@ -18,7 +18,7 @@ contract Power is ERC20Basic {
   address nutzAddr;
   // sum of all outstanding shares
   uint outstandingPow;
-  // when powering up, at least totalSupply/minShare Power should be claimed
+  // when powering down, at least totalSupply/minShare Power should be claimed
   uint minShare = 10000;
 
   // all holder balances
@@ -141,7 +141,7 @@ contract Power is ERC20Basic {
       balances[nutzAddr] = _totalBabzBefore.add(_amountBabz);
     } else {
       // in later increases, expand authorized shares at same rate like economy
-      totalSupply().mul(_totalBabzBefore.add(_amountBabz)).div(_totalBabzBefore);
+      balances[nutzAddr] = totalSupply().mul(_totalBabzBefore.add(_amountBabz)).div(_totalBabzBefore);
     }
     return true;
   }
