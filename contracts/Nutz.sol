@@ -3,6 +3,7 @@ pragma solidity ^0.4.11;
 import "./SafeMath.sol";
 import "./ERC20.sol";
 import "./Power.sol";
+import "./ERC223ReceivingContract.sol";
 
 /**
  * Nutz implements a price floor and a price ceiling on the token being
@@ -85,27 +86,28 @@ contract Nutz is ERC20 {
   // ########### INTERNAL FUNCTIONS #############
   // ############################################
   
-  function sellTokens(uint _amountToken) internal returns (bool) {
+  function _sellTokens(address _from, uint _amountBabz) internal returns (bool) {
     if (floor == INFINITY) {
       throw;
     }
 
-    uint amountEther = _amountToken.mul(BABBAGE).div(floor);
+    uint amountWei = _amountBabz.mul(BABBAGE).div(floor);
     // make sure power pool shrinks proportional to economy
-    if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint powerShare = balances[powerAddr].mul(_amountToken).div(actSupply);
-      balances[powerAddr] = balances[powerAddr].sub(powerShare);
+    uint powerPool = balances[powerAddr];
+    if (powerPool > 0) {
+      uint powerShare = powerPool.mul(_amountBabz).div(actSupply);
+      balances[powerAddr] = powerPool.sub(powerShare);
     }
-    actSupply = actSupply.sub(_amountToken);
-    balances[msg.sender] = balances[msg.sender].sub(_amountToken);
-    reserve = reserve.sub(amountEther);
-    allowed[address(this)][msg.sender] = allowed[address(this)][msg.sender].add(amountEther);
-    Sell(msg.sender,  _amountToken);
+    actSupply = actSupply.sub(_amountBabz);
+    balances[_from] = balances[_from].sub(_amountBabz);
+    reserve = reserve.sub(amountWei);
+    allowed[address(this)][_from] = allowed[address(this)][_from].add(amountWei);
+    Sell(_from,  _amountBabz);
     return true;
   }
 
   // withdraw accumulated balance, called by seller or beneficiary
-  function claimEther(address _sender, address _to) internal returns (bool) {
+  function _claimEther(address _sender, address _to) internal returns (bool) {
     uint amountEth = allowed[address(this)][_sender];
     if (amountEth == 0 || this.balance < amountEth) {
       throw;
@@ -117,24 +119,33 @@ contract Nutz is ERC20 {
     return true;
   }
 
-  function _transfer(address _from, address _to, uint _amountNtz) internal returns (bool) {
+  function _transfer(address _from, address _to, uint _amountNtz, bytes32 _data) internal returns (bool) {
+
     // power up
     if (_to == powerAddr) {
-      _powerUp(_from, _amountNtz);
+      _data = bytes32(totalSupply());
       actSupply = actSupply.sub(_amountNtz);
     }
+    // power down
     if (_from == powerAddr) {
       actSupply = actSupply.add(_amountNtz);
     }
+
     balances[_from] = balances[_from].sub(_amountNtz);
     balances[_to] = balances[_to].add(_amountNtz);
+
+    // erc223: Retrieve the size of the code on target address, this needs assembly .
+    uint codeLength;
+    assembly {
+      codeLength := extcodesize(_to)
+    }
+    if(codeLength>0) {
+      ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
+      receiver.tokenFallback(_from, _amountNtz, _data);
+    }
+
     Transfer(_from, _to, _amountNtz);
     return true;
-  }
-
-  function _powerUp(address _from, uint _amountNtz) internal {
-    var power = Power(powerAddr);
-    power.up(_from, _amountNtz, totalSupply());
   }
 
 
@@ -201,19 +212,19 @@ contract Nutz is ERC20 {
     floor = _newFloor;
   }
 
-  function allocateEther(uint _amountEther, address _beneficiary) onlyAdmins {
-    if (_amountEther == 0) {
+  function allocateEther(uint _amountWei, address _beneficiary) onlyAdmins {
+    if (_amountWei == 0) {
         return;
     }
     // allocateEther fails if allocating those funds would mean that the
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
-    uint leftReserve = reserve.sub(_amountEther);
+    uint leftReserve = reserve.sub(_amountWei);
     if (leftReserve < actSupply.mul(BABBAGE).div(floor)) {
         throw;
     }
-    reserve = reserve.sub(_amountEther);
-    allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountEther);
+    reserve = reserve.sub(_amountWei);
+    allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountWei);
   }
 
   function dilutePower(uint _amountNtz) onlyAdmins {
@@ -278,29 +289,37 @@ contract Nutz is ERC20 {
   }
 
   function transfer(address _to, uint _amountNtz) returns (bool) {
+    return transData(_to, _amountNtz, 0x0);
+  }
+
+  function transData(address _to, uint _amountNtz, bytes32 _data) returns (bool) {
     if (_amountNtz == 0) {
-      return false;
+      throw;
     }
     // sell tokens
     if (_to == address(this)) {
-      return sellTokens(_amountNtz);
+      return _sellTokens(msg.sender, _amountNtz);
     }
-    return _transfer(msg.sender, _to, _amountNtz);
+    return _transfer(msg.sender, _to, _amountNtz, _data);
   }
 
   function transferFrom(address _from, address _to, uint _amountNtz) returns (bool) {
-    if (_from == _to || _to == address(this)) {
+    if (_from == _to) {
       throw;
     }
     // claim ether
     if (_from == address(this) && _amountNtz == 0) {
-      return claimEther(msg.sender, _to);
+      return _claimEther(msg.sender, _to);
     }
     if (_amountNtz == 0) {
-      return false;
+      throw;
+    }
+    // sell tokens
+    if (_to == address(this)) {
+      return _sellTokens(_from, _amountNtz);
     }
     allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amountNtz);
-    return _transfer(_from, _to, _amountNtz);
+    return _transfer(_from, _to, _amountNtz, 0x0);
   }
 
 }

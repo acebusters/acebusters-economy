@@ -119,7 +119,19 @@ contract Power is ERC20Basic {
     return true;
   }
 
-
+  // this is called when NTZ are deposited into the power pool
+  function _up(address _sender, uint _amountBabz, uint _totalBabz) internal {
+    if (totalSupply() == 0 || _amountBabz == 0 || _totalBabz == 0 || _amountBabz < _totalBabz.div(minShare)) {
+      throw;
+    }
+    uint amountPow = _amountBabz.mul(totalSupply()).div(_totalBabz);
+    if (outstandingPow + amountPow > totalSupply().div(2)) {
+      // this powerup would assign more power to power holders than 50% of total NTZ.
+      throw;
+    }
+    outstandingPow = outstandingPow.add(amountPow);
+    balances[_sender] = balances[_sender].add(amountPow);
+  }
 
 
   // ############################################
@@ -146,21 +158,9 @@ contract Power is ERC20Basic {
     return true;
   }
 
-  // this is called when NTZ are deposited into the power pool
-  function up(address _sender, uint _amountBabz, uint _totalBabz) onlyNutzContract {
-    if (totalSupply() == 0 || _amountBabz == 0 || _totalBabz == 0 || _amountBabz < _totalBabz.div(minShare)) {
-      throw;
-    }
-    uint amountPow = _amountBabz.mul(totalSupply()).div(_totalBabz);
-    if (outstandingPow + amountPow > totalSupply().div(2)) {
-      // this powerup would assign more power to power holders than 50% of total NTZ.
-      throw;
-    }
-    outstandingPow = outstandingPow.add(amountPow);
-    balances[_sender] = balances[_sender].add(amountPow);
+  function tokenFallback(address _from, uint _value, bytes32 _data) onlyNutzContract {
+    _up(_from, _value, uint256(_data));
   }
-
-
 
 
   // ############################################

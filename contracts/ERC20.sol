@@ -1,14 +1,14 @@
 pragma solidity ^0.4.11;
 
 
-import './ERC20Basic.sol';
+import './ERC223Basic.sol';
 
 
 /*
  * ERC20 interface
  * see https://github.com/ethereum/EIPs/issues/20
  */
-contract ERC20 is ERC20Basic {
+contract ERC20 is ERC223Basic {
   // active supply of tokens
   function activeSupply() constant returns (uint256);
   function allowance(address _owner, address _spender) constant returns (uint256);
