@@ -82,6 +82,7 @@ contract Nutz is ERC20 {
 
 
 
+
   // ############################################
   // ########### INTERNAL FUNCTIONS #############
   // ############################################
@@ -147,6 +148,9 @@ contract Nutz is ERC20 {
     Transfer(_from, _to, _amountNtz);
     return true;
   }
+
+
+
 
 
   // ############################################
@@ -228,14 +232,18 @@ contract Nutz is ERC20 {
   }
 
   function dilutePower(uint _amountNtz) onlyAdmins {
-    var power = Power(powerAddr);
-    uint burn = balances[address(this)];
-    uint totalSupply = actSupply.add(balances[powerAddr]).add(burn);
-    if (!power.burn(totalSupply, _amountNtz)) {
+    uint256 burn = balances[address(this)];
+    uint256 totalSupply = actSupply.add(balances[powerAddr]).add(burn);
+    if (!Power(powerAddr).dilutePower(totalSupply, _amountNtz)) {
       throw;
     }
     balances[address(this)] = burn.add(_amountNtz);
   }
+
+  function setMaxPower(uint256 _maxPower) onlyAdmins {
+    Power(powerAddr).setMaxPower(_maxPower);
+  }
+
 
 
 

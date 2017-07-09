@@ -33,6 +33,8 @@ contract('Power', (accounts) => {
     const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: accounts[0], to: token.address, value: WEI_AMOUNT });
     await web3.eth.transactionMined(txHash1);
     await token.dilutePower(0);
+    const authorizedPower = await power.totalSupply.call();
+    await token.setMaxPower(authorizedPower.div(2));
     const babzBalAlice = await token.balanceOf.call(ALICE);
     const expectedBal = (WEI_AMOUNT * CEILING_PRICE) / PRICE_FACTOR.toNumber();
     assert.equal(babzBalAlice.toNumber(), expectedBal, 'purchase failed');
