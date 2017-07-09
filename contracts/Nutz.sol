@@ -13,8 +13,8 @@ import "./ERC223ReceivingContract.sol";
 contract Nutz is ERC20 {
   using SafeMath for uint;
 
-  event Purchase(address indexed purchaser, uint value);
-  event Sell(address indexed seller, uint value);
+  event Purchase(address indexed purchaser, uint256 value);
+  event Sell(address indexed seller, uint256 value);
   
   string public name = "Acebusters Nutz";
   // acebusters units:
@@ -24,13 +24,13 @@ contract Nutz is ERC20 {
   // 10^3 - Pascalz
   // 10^0 - Babz
   string public symbol = "NTZ";
-  uint public decimals = 12;
-  uint INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-  uint BABBAGE = 1000000;   // 1 BABBAGE equals 1,000,000 WEI, used as price factor
+  uint256 public decimals = 12;
+  uint256 INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+  uint256 BABBAGE = 1000000;   // 1 BABBAGE equals 1,000,000 WEI, used as price factor
 
   uint256 actSupply;
   // contract's ether balance, except all ether parked to be withdrawn
-  uint public reserve;
+  uint256 public reserve;
   // balanceOf[powerAddr] returns power pool
   // balanceOf[address(this)] returns burn pool
   mapping(address => uint) balances;
@@ -39,11 +39,11 @@ contract Nutz is ERC20 {
   
   // the Token sale mechanism parameters:
   // ceiling is the number of NTZ returned for 1 ETH
-  uint public ceiling;
+  uint256 public ceiling;
   // floor is the number of NTZ needed, no receive 1 ETH back
   // we say that floor is lower than ceiling, if the number of NTZ needed to sell
   // to receive the same amount of ETH as used in purchase, is higher.
-  uint public floor;
+  uint256 public floor;
   address[] public admins;
   address public powerAddr;
 
@@ -68,7 +68,7 @@ contract Nutz is ERC20 {
     return allowed[_owner][_spender];
   }
   
-  function Nutz(uint _downTime) {
+  function Nutz(uint256 _downTime) {
     admins.length = 1;
     admins[0] = msg.sender;
     // initial purchase price
@@ -87,16 +87,16 @@ contract Nutz is ERC20 {
   // ########### INTERNAL FUNCTIONS #############
   // ############################################
   
-  function _sellTokens(address _from, uint _amountBabz) internal returns (bool) {
+  function _sellTokens(address _from, uint256 _amountBabz) internal returns (bool) {
     if (floor == INFINITY) {
       throw;
     }
 
-    uint amountWei = _amountBabz.mul(BABBAGE).div(floor);
+    uint256 amountWei = _amountBabz.mul(BABBAGE).div(floor);
     // make sure power pool shrinks proportional to economy
-    uint powerPool = balances[powerAddr];
+    uint256 powerPool = balances[powerAddr];
     if (powerPool > 0) {
-      uint powerShare = powerPool.mul(_amountBabz).div(actSupply);
+      uint256 powerShare = powerPool.mul(_amountBabz).div(actSupply);
       balances[powerAddr] = powerPool.sub(powerShare);
     }
     actSupply = actSupply.sub(_amountBabz);
@@ -109,7 +109,7 @@ contract Nutz is ERC20 {
 
   // withdraw accumulated balance, called by seller or beneficiary
   function _claimEther(address _sender, address _to) internal returns (bool) {
-    uint amountEth = allowed[address(this)][_sender];
+    uint256 amountEth = allowed[address(this)][_sender];
     if (amountEth == 0 || this.balance < amountEth) {
       throw;
     }
@@ -120,7 +120,7 @@ contract Nutz is ERC20 {
     return true;
   }
 
-  function _transfer(address _from, address _to, uint _amountNtz, bytes32 _data) internal returns (bool) {
+  function _transfer(address _from, address _to, uint256 _amountNtz, bytes32 _data) internal returns (bool) {
 
     // power up
     if (_to == powerAddr) {
@@ -136,7 +136,7 @@ contract Nutz is ERC20 {
     balances[_to] = balances[_to].add(_amountNtz);
 
     // erc223: Retrieve the size of the code on target address, this needs assembly .
-    uint codeLength;
+    uint256 codeLength;
     assembly {
       codeLength := extcodesize(_to)
     }
@@ -158,7 +158,7 @@ contract Nutz is ERC20 {
   // ############################################
 
   modifier onlyAdmins() {
-    for (uint i = 0; i < admins.length; i++) {
+    for (uint256 i = 0; i < admins.length; i++) {
       if (msg.sender == admins[i]) {
         _;
       }
@@ -166,7 +166,7 @@ contract Nutz is ERC20 {
   }
 
   function addAdmin(address _admin) onlyAdmins {
-    for (uint i = 0; i < admins.length; i++) {
+    for (uint256 i = 0; i < admins.length; i++) {
       if (_admin == admins[i]) {
         throw;
       }
@@ -174,13 +174,13 @@ contract Nutz is ERC20 {
     if (admins.length > 10) {
       throw;
     }
-    uint pos = admins.length++;
+    uint256 pos = admins.length++;
     admins[pos] = _admin;
   }
 
   function removeAdmin(address _admin) onlyAdmins {
     uint256 pos = 1337;
-    for (uint i = 0; i < admins.length; i++) {
+    for (uint256 i = 0; i < admins.length; i++) {
       if (_admin == admins[i]) {
         pos = i;
       }
@@ -193,14 +193,14 @@ contract Nutz is ERC20 {
     admins.length--;
   }
   
-  function moveCeiling(uint _newCeiling) onlyAdmins {
+  function moveCeiling(uint256 _newCeiling) onlyAdmins {
     if (_newCeiling > floor) {
         throw;
     }
     ceiling = _newCeiling;
   }
   
-  function moveFloor(uint _newFloor) onlyAdmins {
+  function moveFloor(uint256 _newFloor) onlyAdmins {
     if (_newFloor < ceiling) {
         throw;
     }
@@ -208,7 +208,7 @@ contract Nutz is ERC20 {
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     if (_newFloor > 0) {
-      uint newReserveNeeded = actSupply.mul(BABBAGE).div(_newFloor);
+      uint256 newReserveNeeded = actSupply.mul(BABBAGE).div(_newFloor);
       if (reserve < newReserveNeeded) {
           throw;
       }
@@ -216,14 +216,14 @@ contract Nutz is ERC20 {
     floor = _newFloor;
   }
 
-  function allocateEther(uint _amountWei, address _beneficiary) onlyAdmins {
+  function allocateEther(uint256 _amountWei, address _beneficiary) onlyAdmins {
     if (_amountWei == 0) {
         return;
     }
     // allocateEther fails if allocating those funds would mean that the
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
-    uint leftReserve = reserve.sub(_amountWei);
+    uint256 leftReserve = reserve.sub(_amountWei);
     if (leftReserve < actSupply.mul(BABBAGE).div(floor)) {
         throw;
     }
@@ -231,7 +231,7 @@ contract Nutz is ERC20 {
     allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountWei);
   }
 
-  function dilutePower(uint _amountNtz) onlyAdmins {
+  function dilutePower(uint256 _amountNtz) onlyAdmins {
     uint256 burn = balances[address(this)];
     uint256 totalSupply = actSupply.add(balances[powerAddr]).add(burn);
     if (!Power(powerAddr).dilutePower(totalSupply, _amountNtz)) {
@@ -264,7 +264,7 @@ contract Nutz is ERC20 {
     if (ceiling == 0) {
       throw;
     }
-    uint amountToken = msg.value.mul(ceiling).div(BABBAGE);
+    uint256 amountToken = msg.value.mul(ceiling).div(BABBAGE);
     // avoid deposits that issue nothing
     // might happen with very large ceiling
     if (amountToken == 0) {
@@ -273,7 +273,7 @@ contract Nutz is ERC20 {
     reserve = reserve.add(msg.value);
     // make sure power pool grows proportional to economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint powerShare = balances[powerAddr].mul(amountToken).div(actSupply);
+      uint256 powerShare = balances[powerAddr].mul(amountToken).div(actSupply);
       balances[powerAddr] = balances[powerAddr].add(powerShare);
     }
     actSupply = actSupply.add(amountToken);
@@ -288,7 +288,7 @@ contract Nutz is ERC20 {
   // ########### PUBLIC FUNCTIONS ###############
   // ############################################
   
-  function approve(address _spender, uint _amountNtz) {
+  function approve(address _spender, uint256 _amountNtz) {
     if (_spender == address(this) || msg.sender == _spender || _amountNtz == 0) {
       throw;
     }
@@ -296,11 +296,11 @@ contract Nutz is ERC20 {
     Approval(msg.sender, _spender, _amountNtz);
   }
 
-  function transfer(address _to, uint _amountNtz) returns (bool) {
+  function transfer(address _to, uint256 _amountNtz) returns (bool) {
     return transData(_to, _amountNtz, 0x0);
   }
 
-  function transData(address _to, uint _amountNtz, bytes32 _data) returns (bool) {
+  function transData(address _to, uint256 _amountNtz, bytes32 _data) returns (bool) {
     if (_amountNtz == 0) {
       throw;
     }
@@ -311,7 +311,7 @@ contract Nutz is ERC20 {
     return _transfer(msg.sender, _to, _amountNtz, _data);
   }
 
-  function transferFrom(address _from, address _to, uint _amountNtz) returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _amountNtz) returns (bool) {
     if (_from == _to) {
       throw;
     }
