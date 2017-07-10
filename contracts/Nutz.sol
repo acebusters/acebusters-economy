@@ -120,11 +120,14 @@ contract Nutz is ERC20 {
     return true;
   }
 
-  function _transfer(address _from, address _to, uint256 _amountNtz, bytes32 _data) internal returns (bool) {
-
+  function _transfer(address _from, address _to, uint256 _amountNtz, bytes _data) internal returns (bool) {
+    bytes memory data;
+    // todo: copy data
     // power up
     if (_to == powerAddr) {
-      _data = bytes32(totalSupply());
+      data = new bytes(32);
+      uint ts = totalSupply();
+      assembly { mstore(add(data, 32), ts) }
       actSupply = actSupply.sub(_amountNtz);
     }
     // power down
@@ -142,7 +145,7 @@ contract Nutz is ERC20 {
     }
     if(codeLength>0) {
       ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
-      receiver.tokenFallback(_from, _amountNtz, _data);
+      receiver.tokenFallback(_from, _amountNtz, data);
     }
 
     Transfer(_from, _to, _amountNtz);
@@ -296,11 +299,11 @@ contract Nutz is ERC20 {
     Approval(msg.sender, _spender, _amountNtz);
   }
 
-  function transfer(address _to, uint256 _amountNtz) returns (bool) {
-    return transData(_to, _amountNtz, 0x0);
-  }
+  // function transfer(address _to, uint256 _amountNtz) returns (bool) {
+  //   return transfer(_to, _amountNtz, 0x0);
+  // }
 
-  function transData(address _to, uint256 _amountNtz, bytes32 _data) returns (bool) {
+  function transfer(address _to, uint256 _amountNtz, bytes _data) returns (bool) {
     if (_amountNtz == 0) {
       throw;
     }
@@ -327,7 +330,8 @@ contract Nutz is ERC20 {
       return _sellTokens(_from, _amountNtz);
     }
     allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amountNtz);
-    return _transfer(_from, _to, _amountNtz, 0x0);
+    bytes memory empty;
+    return _transfer(_from, _to, _amountNtz, empty);
   }
 
 }

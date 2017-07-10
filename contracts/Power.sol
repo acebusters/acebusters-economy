@@ -109,7 +109,8 @@ contract Power is ERC20Basic {
     // transfer power and tokens
     outstandingPower = outstandingPower.sub(amountPow);
     req.left = req.left.sub(amountPow);
-    if (!nutzContract.transfer(req.owner, amountBabz)) {
+    bytes memory empty;
+    if (!nutzContract.transfer(req.owner, amountBabz, empty)) {
       throw;
     }
     // down request completed
@@ -162,9 +163,12 @@ contract Power is ERC20Basic {
   // ############################################
 
   // this is called when NTZ are deposited into the power pool
-  function tokenFallback(address _from, uint256 _amountBabz, bytes32 _data) {
+  function tokenFallback(address _from, uint256 _amountBabz, bytes _data) {
     assert (msg.sender == nutzAddr);
-    uint256 totalBabz = uint256(_data);
+    uint256 totalBabz;
+    assembly {
+      totalBabz := mload(add(_data, 32))
+    }
     assert(authorizedPower != 0 && _amountBabz != 0 && totalBabz != 0);
     uint256 amountPow = _amountBabz.mul(authorizedPower).div(totalBabz);
     // TODO: check amountPow is worth dealing with (not small percenage)
@@ -176,7 +180,7 @@ contract Power is ERC20Basic {
   }
 
   // registers a powerdown request
-  function transfer(address _to, uint256 _amountPower) returns (bool success) {
+  function transfer(address _to, uint256 _amountPower, bytes _data) returns (bool success) {
     // make Power not transferable
     assert(_to == nutzAddr);
     // prevent powering down tiny amounts

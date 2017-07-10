@@ -41,7 +41,7 @@ contract('Nutz', function(accounts) {
     let babzBalance = await token.balanceOf.call(accounts[0]);
     assert.equal(babzBalance.toNumber(), ceiling.mul(weiAmount).div(PRICE_FACTOR).toNumber(), 'token wasn\'t issued to account');
     // sell half of the tokens
-    await token.transfer(token.address, babzBalance.div(2));
+    await token.transfer(token.address, babzBalance.div(2), "0x00");
     // check balance, supply
     let newBabzBal = await token.balanceOf.call(accounts[0]);
     assert.equal(newBabzBal.toNumber(), babzBalance.div(2).toNumber(), 'token wasn\'t deducted by sell');
@@ -181,7 +181,7 @@ contract('Nutz', function(accounts) {
     assert.equal(babzBalance.toNumber(), ceiling.mul(weiAmount).div(PRICE_FACTOR).toNumber(), 'amount wasn\'t issued to account');
     // transfer token to other account
     const halfbabzBalance = babzBalance.dividedBy(2);
-    let transfer = await token.transfer(accounts[1], halfbabzBalance);
+    let transfer = await token.transfer(accounts[1], halfbabzBalance, "0x00");
 
     // check balances of sender and recepient
     const newbabzBalance = await token.balanceOf(accounts[0]);
@@ -193,7 +193,7 @@ contract('Nutz', function(accounts) {
   it('should throw an error when trying to transfer more than balance', async function() {
     const token = await Nutz.new(0);
     try {
-      await token.transfer(accounts[1], 101);
+      await token.transfer(accounts[1], 101, "0x00");
     } catch(error) {
       return assertJump(error);
     }

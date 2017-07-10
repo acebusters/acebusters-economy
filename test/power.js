@@ -44,7 +44,7 @@ contract('Power', (accounts) => {
     const ntz6k = NTZ_DECIMALS.mul(6000);
     assert.equal(ntz6k.toNumber(), babzTotal1.div(5).toNumber());
     // powerup these tokens and check shares
-    await token.transfer(power.address, ntz6k);
+    await token.transfer(power.address, ntz6k, "0x00");
     const powTotal = await power.totalSupply.call();
     const powBalAlice = await power.balanceOf.call(ALICE);
     assert.equal(powBalAlice.toNumber(), powTotal.div(5).toNumber(), 'first power up failed');
@@ -70,7 +70,7 @@ contract('Power', (accounts) => {
     // power down and check
     const babzBalAliceBefore = await token.balanceOf.call(ALICE);
     const babzActiveBefore = await token.activeSupply.call();
-    await power.transfer(token.address, pow10pc);
+    await power.transfer(token.address, pow10pc, "0x00");
     await power.downTickTest(0, (Date.now() / 1000 | 0) + DOWNTIME);
     const powBalAliceAfter = await power.balanceOf.call(ALICE);
     assert.equal(powBalAliceAfter.toNumber(), pow10pc.toNumber(), 'power down failed in Power contract');
