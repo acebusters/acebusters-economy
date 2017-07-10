@@ -180,7 +180,7 @@ contract Power is ERC20Basic {
   }
 
   // registers a powerdown request
-  function transfer(address _to, uint256 _amountPower, bytes _data) returns (bool success) {
+  function transfer(address _to, uint256 _amountPower) returns (bool success) {
     // make Power not transferable
     assert(_to == nutzAddr);
     // prevent powering down tiny amounts

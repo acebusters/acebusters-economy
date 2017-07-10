@@ -299,9 +299,14 @@ contract Nutz is ERC20 {
     Approval(msg.sender, _spender, _amountNtz);
   }
 
-  // function transfer(address _to, uint256 _amountNtz) returns (bool) {
-  //   return transfer(_to, _amountNtz, 0x0);
-  // }
+  function transfer(address _to, uint256 _amountNtz) returns (bool) {
+    bytes memory empty;
+    return transfer(_to, _amountNtz, empty);
+  }
+
+  function transData(address _to, uint256 _amountNtz, bytes _data) returns (bool) {
+    return transfer(_to, _amountNtz, _data);
+  }
 
   function transfer(address _to, uint256 _amountNtz, bytes _data) returns (bool) {
     if (_amountNtz == 0) {
