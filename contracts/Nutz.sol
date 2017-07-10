@@ -122,13 +122,14 @@ contract Nutz is ERC20 {
 
   function _transfer(address _from, address _to, uint256 _amountNtz, bytes _data) internal returns (bool) {
     bytes memory data;
-    // todo: copy data
     // power up
     if (_to == powerAddr) {
       data = new bytes(32);
       uint ts = totalSupply();
       assembly { mstore(add(data, 32), ts) }
       actSupply = actSupply.sub(_amountNtz);
+    } else {
+      data = _data;
     }
     // power down
     if (_from == powerAddr) {
