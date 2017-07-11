@@ -143,14 +143,9 @@ contract Power is ERC20Basic {
   }
 
   // this is called when NTZ are deposited into the burn pool
-  function dilutePower(uint256 _totalBabzBefore, uint256 _amountBabz) onlyNutzContract returns (bool) {
-    if (authorizedPower == 0) {
-      // during the first capital increase, set some big number as authorized shares
-      authorizedPower = _totalBabzBefore.add(_amountBabz);
-    } else {
-      // in later increases, expand authorized shares at same rate like economy
-      authorizedPower = authorizedPower.mul(_totalBabzBefore.add(_amountBabz)).div(_totalBabzBefore);
-    }
+  function dilutePower(uint256 _value) onlyNutzContract returns (bool) {
+    // in later increases, expand authorized shares at same rate like economy
+    authorizedPower = authorizedPower.add(_value);
     return true;
   }
 

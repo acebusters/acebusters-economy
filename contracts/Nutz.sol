@@ -235,10 +235,9 @@ contract Nutz is ERC20 {
     allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountWei);
   }
 
-  function dilutePower(uint256 _amountNtz) onlyAdmins {
+  function dilutePower(uint256 _amountNtz, uint256 _amountPow) onlyAdmins {
     uint256 burn = balances[address(this)];
-    uint256 totalSupply = actSupply.add(balances[powerAddr]).add(burn);
-    if (!Power(powerAddr).dilutePower(totalSupply, _amountNtz)) {
+    if (!Power(powerAddr).dilutePower(_amountPow)) {
       throw;
     }
     balances[address(this)] = burn.add(_amountNtz);
@@ -261,23 +260,19 @@ contract Nutz is ERC20 {
   }
   
   function purchaseTokens() payable {
-    if (msg.value == 0) {
-      return;
-    }
+    assert(msg.value > 0);
     // disable purchases if ceiling set to 0
-    if (ceiling == 0) {
-      throw;
-    }
+    assert(ceiling > 0);
+
     uint256 amountToken = msg.value.mul(ceiling).div(BABBAGE);
     // avoid deposits that issue nothing
     // might happen with very large ceiling
-    if (amountToken == 0) {
-      throw;
-    }
+    assert(amountToken > 0);
+
     reserve = reserve.add(msg.value);
     // make sure power pool grows proportional to economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint256 powerShare = balances[powerAddr].mul(amountToken).div(actSupply);
+      uint256 powerShare = balances[powerAddr].mul(amountToken).div(actSupply.add(balances[address (this)]));
       balances[powerAddr] = balances[powerAddr].add(powerShare);
     }
     actSupply = actSupply.add(amountToken);
