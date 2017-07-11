@@ -14,7 +14,7 @@ contract('Power', (accounts) => {
     const token = await Nutz.new(DOWNTIME);
     const powerAddr = await token.powerAddr.call();
     const power = Power.at(powerAddr);
-    await token.dilutePower(0, 10000);
+    await token.dilutePower(10000);
     const authorizedShares = await power.totalSupply.call();
     assert.equal(authorizedShares.toNumber(), 10000, 'shares not authorized');
   });
@@ -31,8 +31,7 @@ contract('Power', (accounts) => {
     // get some NTZ for 1 ETH
     const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: ALICE, to: token.address, value: WEI_AMOUNT });
     await web3.eth.transactionMined(txHash1);
-    const totalNtz = await token.totalSupply.call();
-    await token.dilutePower(0, totalNtz);
+    await token.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
     await token.setMaxPower(authorizedPower.div(2));
     const babzBalAlice = await token.balanceOf.call(ALICE);
@@ -87,18 +86,19 @@ contract('Power', (accounts) => {
     const token = await Nutz.new(DOWNTIME);
     const powerAddr = await token.powerAddr.call();
     const power = Power.at(powerAddr);
-    await token.moveCeiling(CEILING_PRICE);
+    await token.moveCeiling(CEILING_PRICE * 20);
     // Founder Buy in 
     const FOUNDERS = accounts[1];
     const INVESTORS = accounts[2];
     
     const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: FOUNDERS, to: token.address, value: WEI_AMOUNT });
     await web3.eth.transactionMined(txHash1);
-    const expectedBal = (WEI_AMOUNT * CEILING_PRICE) / PRICE_FACTOR.toNumber();
+    const expectedBal = (WEI_AMOUNT * CEILING_PRICE * 20) / PRICE_FACTOR.toNumber();
     assert.equal(await token.balanceOf.call(FOUNDERS), expectedBal);
     // Founder Burn
     const totalNtz = await token.totalSupply.call();
-    await token.dilutePower(totalNtz, totalNtz.mul(2));
+    await token.dilutePower(0);
+    await token.dilutePower(totalNtz);
     const totalPow = await power.totalSupply.call();
     await token.setMaxPower(totalPow.div(2));
     // Founder power up, 1 ETH to 50 percent
@@ -106,21 +106,38 @@ contract('Power', (accounts) => {
     const founderPow = await power.balanceOf.call(FOUNDERS);
     assert.equal(founderPow.toNumber(), totalPow.div(2).toNumber());
     // Investor buy in, 10 ETH
-    const txHash2 = web3.eth.sendTransaction({ gas: 300000, from: INVESTORS, to: token.address, value: WEI_AMOUNT * 10 });
+    // increase token price for investors
+    await token.moveCeiling(CEILING_PRICE);
+    const txHash2 = web3.eth.sendTransaction({ gas: 300000, from: INVESTORS, to: token.address, value: WEI_AMOUNT * 7 });
     await web3.eth.transactionMined(txHash1);
     // Invetors Burn  
     const totalPow2 = await power.totalSupply.call();
     const totalNtz2 = await token.totalSupply.call();
     const investorsBal = await token.balanceOf.call(INVESTORS);
-    await token.dilutePower(investorsBal.mul(10).sub(totalNtz2), totalPow2.div(4));
+    await token.dilutePower(totalNtz2.div(4));
+    const totalNtz3 = await token.totalSupply.call();
     const totalPow3 = await power.totalSupply.call();
     // Investor Power Up, ETH to 10 percent
     await token.setMaxPower(totalPow3.div(2));
-    await token.transfer(powerAddr, investorsBal, "0x00", { from: INVESTORS });
+    await token.transfer(powerAddr, totalNtz3.div(10), "0x00", { from: INVESTORS });
     const investorPow = await power.balanceOf.call(INVESTORS);
     // investor power should be 10%
     assert.equal(totalPow3.div(10).toNumber(), investorPow.toNumber());
     // founder power should be 40%
     assert.equal(totalPow3.div(10).mul(4).toNumber(), founderPow.toNumber());
+    // payout milestone 1 -> 10%
+    const floor = await token.floor.call();
+    const ceiling = await token.ceiling.call();
+    const totalReserve = web3.toWei(8, 'ether');
+    const weiReserve = await token.reserve.call();
+    assert.equal(weiReserve.toNumber(), totalReserve, 'reserve incorrect');
+    // payout 10 percent
+    const payoutAmount = totalReserve/2;
+    await token.allocateEther(payoutAmount, FOUNDERS);
+    let amountAllocated = await token.allowance.call(token.address, FOUNDERS);
+    assert.equal(payoutAmount, amountAllocated.toNumber(), 'ether wasn\'t allocated to beneficiary');
+    await token.transferFrom(token.address, FOUNDERS, 0, { from: FOUNDERS });
+    let amountAllocated2 = await token.allowance.call(token.address, FOUNDERS);
+    assert.equal(amountAllocated2, 0, 'ether wasn\'t received');
   });
 });
