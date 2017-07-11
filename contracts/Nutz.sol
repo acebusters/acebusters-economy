@@ -310,9 +310,7 @@ contract Nutz is ERC20 {
   }
 
   function transfer(address _to, uint256 _amountNtz, bytes _data) returns (bool) {
-    if (_amountNtz == 0) {
-      throw;
-    }
+    assert(_amountNtz != 0);
     // sell tokens
     if (_to == address(this)) {
       return _sellTokens(msg.sender, _amountNtz);
@@ -321,16 +319,12 @@ contract Nutz is ERC20 {
   }
 
   function transferFrom(address _from, address _to, uint256 _amountNtz) returns (bool) {
-    if (_from == _to) {
-      throw;
-    }
+    assert(_from != _to);
     // claim ether
     if (_from == address(this) && _amountNtz == 0) {
       return _claimEther(msg.sender, _to);
     }
-    if (_amountNtz == 0) {
-      throw;
-    }
+    assert(_amountNtz > 0);
     // sell tokens
     if (_to == address(this)) {
       return _sellTokens(_from, _amountNtz);

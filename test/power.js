@@ -30,7 +30,7 @@ contract('Power', (accounts) => {
     const power = Power.at(powerAddr);
     
     // get some NTZ for 1 ETH
-    const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: accounts[0], to: token.address, value: WEI_AMOUNT });
+    const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: ALICE, to: token.address, value: WEI_AMOUNT });
     await web3.eth.transactionMined(txHash1);
     await token.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
@@ -80,7 +80,7 @@ contract('Power', (accounts) => {
     assert.equal(babzBalAliceAfter.toNumber(), expectedBalAfter.toNumber(), 'power down failed in Nutz contract');
     const activeSupply = await token.activeSupply.call();
     const expectedActiveAfter = babzActiveBefore.add(babzTotal2.div(10));
-    assert.equal(activeSupply.toNumber(), expectedActiveAfter.toNumber(), 'config failed.');
+    assert.equal(activeSupply.toNumber(), expectedActiveAfter.toNumber(), 'active supply wrong after power down.');
   });
 
 });

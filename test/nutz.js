@@ -10,7 +10,7 @@ contract('Nutz', function(accounts) {
   
 
   it('should allow to purchase', async function() {
-    // create token contract, default ceiling == floor
+    // create token contract
     const token = await Nutz.new(3600);
     await token.moveCeiling(30000);
     const ceiling = await token.ceiling.call();
@@ -56,6 +56,7 @@ contract('Nutz', function(accounts) {
     await token.transferFrom(token.address, accounts[0], 0);
     weiAllocation = await token.allowance.call(token.address, accounts[0]);
     assert.equal(weiAllocation.toNumber(), 0, 'allocation wasn\'t payed out.');
+    // TODO: check my ether balance increased
   });
 
   it('allocate_funds_to_beneficiary and claim_revenue', async function() {
@@ -82,6 +83,7 @@ contract('Nutz', function(accounts) {
     await token.transferFrom(token.address, accounts[1], 0, { from: accounts[1] });
     weiAllocated = await token.allowance.call(token.address, accounts[1]);
     assert.equal(weiAllocated.toNumber(), 0, 'allocation wasn\'t payed out.');
+    // TODO: check ether balance actually increased
   });
 
   it('should handle The sale administrator sets floor = infinity, ceiling = 0', async function() {
