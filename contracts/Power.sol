@@ -67,7 +67,7 @@ contract Power is ERC20Basic {
     }
     // calculate amountVested
     // amountVested is amount that can be withdrawn according to time passed
-    DownRequest req = downs[_pos];
+    DownRequest storage req = downs[_pos];
     uint256 timePassed = _now.sub(req.start);
     if (timePassed > downtime) {
      timePassed = downtime;
@@ -91,16 +91,11 @@ contract Power is ERC20Basic {
   // executes a powerdown request
   function _downTick(uint256 _pos, uint256 _now) internal returns (bool success) {
     uint256 amountPow = vestedDown(_pos, _now);
-    if (amountPow == 0) {
-      throw;
-    }
-    DownRequest req = downs[_pos];
+    DownRequest storage req = downs[_pos];
 
     // prevent power down in tiny steps
     uint256 minStep = req.total.div(10);
-    if (amountPow < minStep && req.left > minStep) {
-      throw;
-    }
+    assert(req.left <= minStep || minStep <= amountPow);
 
     // calculate token amount representing share of power
     var nutzContract = ERC20(nutzAddr);
@@ -110,9 +105,7 @@ contract Power is ERC20Basic {
     outstandingPower = outstandingPower.sub(amountPow);
     req.left = req.left.sub(amountPow);
     bytes memory empty;
-    if (!nutzContract.transfer(req.owner, amountBabz, empty)) {
-      throw;
-    }
+    assert(nutzContract.transfer(req.owner, amountBabz, empty));
     // down request completed
     if (req.left == 0) {
       // if not last element, switch with last

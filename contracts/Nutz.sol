@@ -88,9 +88,7 @@ contract Nutz is ERC20 {
   // ############################################
   
   function _sellTokens(address _from, uint256 _amountBabz) internal returns (bool) {
-    if (floor == INFINITY) {
-      throw;
-    }
+    assert(floor != INFINITY);
 
     uint256 amountWei = _amountBabz.mul(BABBAGE).div(floor);
     // make sure power pool shrinks proportional to economy
@@ -108,16 +106,11 @@ contract Nutz is ERC20 {
   }
 
   // withdraw accumulated balance, called by seller or beneficiary
-  function _claimEther(address _sender, address _to) internal returns (bool) {
+  function _claimEther(address _sender, address _to) internal {
     uint256 amountEth = allowed[address(this)][_sender];
-    if (amountEth == 0 || this.balance < amountEth) {
-      throw;
-    }
+    assert(0 < amountEth && amountEth <= this.balance);
     allowed[address(this)][_sender] = 0;
-    if (!_to.send(amountEth)) {
-      throw;
-    }
-    return true;
+    assert(_to.send(amountEth));
   }
 
   function _transfer(address _from, address _to, uint256 _amountNtz, bytes _data) internal returns (bool) {
@@ -171,15 +164,10 @@ contract Nutz is ERC20 {
 
   function addAdmin(address _admin) onlyAdmins {
     for (uint256 i = 0; i < admins.length; i++) {
-      if (_admin == admins[i]) {
-        throw;
-      }
+      assert(_admin != admins[i]);
     }
-    if (admins.length > 10) {
-      throw;
-    }
-    uint256 pos = admins.length++;
-    admins[pos] = _admin;
+    assert(admins.length <= 10);
+    admins[admins.length++] = _admin;
   }
 
   function removeAdmin(address _admin) onlyAdmins {
@@ -198,39 +186,29 @@ contract Nutz is ERC20 {
   }
   
   function moveCeiling(uint256 _newCeiling) onlyAdmins {
-    if (_newCeiling > floor) {
-        throw;
-    }
+    assert(_newCeiling <= floor);
     ceiling = _newCeiling;
   }
   
   function moveFloor(uint256 _newFloor) onlyAdmins {
-    if (_newFloor < ceiling) {
-        throw;
-    }
+    assert(_newFloor >= ceiling);
     // moveFloor fails if the administrator tries to push the floor so low
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     if (_newFloor > 0) {
       uint256 newReserveNeeded = actSupply.mul(BABBAGE).div(_newFloor);
-      if (reserve < newReserveNeeded) {
-          throw;
-      }
+      assert(reserve >= newReserveNeeded);
     }
     floor = _newFloor;
   }
 
   function allocateEther(uint256 _amountWei, address _beneficiary) onlyAdmins {
-    if (_amountWei == 0) {
-        return;
-    }
+    assert(_amountWei > 0);
     // allocateEther fails if allocating those funds would mean that the
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
     uint256 leftReserve = reserve.sub(_amountWei);
-    if (leftReserve < actSupply.mul(BABBAGE).div(floor)) {
-        throw;
-    }
+    assert(leftReserve >= actSupply.mul(BABBAGE).div(floor));
     reserve = reserve.sub(_amountWei);
     allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountWei);
   }
@@ -238,9 +216,7 @@ contract Nutz is ERC20 {
   function dilutePower(uint256 _amountNtz) onlyAdmins {
     uint256 burn = balances[address(this)];
     uint256 totalSupply = actSupply.add(balances[powerAddr]).add(burn);
-    if (!Power(powerAddr).dilutePower(totalSupply, _amountNtz)) {
-      throw;
-    }
+    assert(Power(powerAddr).dilutePower(totalSupply, _amountNtz));
     balances[address(this)] = burn.add(_amountNtz);
   }
 
@@ -289,9 +265,9 @@ contract Nutz is ERC20 {
   // ############################################
   
   function approve(address _spender, uint256 _amountNtz) {
-    if (_spender == address(this) || msg.sender == _spender || _amountNtz == 0) {
-      throw;
-    }
+    assert(_spender != address(this));
+    assert(msg.sender != _spender);
+    assert(_amountNtz != 0);
     allowed[msg.sender][_spender] = _amountNtz;
     Approval(msg.sender, _spender, _amountNtz);
   }
@@ -318,7 +294,8 @@ contract Nutz is ERC20 {
     assert(_from != _to);
     // claim ether
     if (_from == address(this) && _amountNtz == 0) {
-      return _claimEther(msg.sender, _to);
+      _claimEther(msg.sender, _to);
+      return true;
     }
     assert(_amountNtz > 0);
     // sell tokens
