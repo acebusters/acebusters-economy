@@ -96,9 +96,9 @@ contract('Power', (accounts) => {
     const expectedBal = (WEI_AMOUNT * CEILING_PRICE * 20) / PRICE_FACTOR.toNumber();
     assert.equal(await token.balanceOf.call(FOUNDERS), expectedBal);
     // Founder Burn
-    const totalNtz = await token.totalSupply.call();
+    const totalBabz = await token.totalSupply.call();
     await token.dilutePower(0);
-    await token.dilutePower(totalNtz);
+    await token.dilutePower(totalBabz);
     const totalPow = await power.totalSupply.call();
     await token.setMaxPower(totalPow.div(2));
     // Founder power up, 1 ETH to 50 percent
@@ -112,14 +112,14 @@ contract('Power', (accounts) => {
     await web3.eth.transactionMined(txHash1);
     // Invetors Burn  
     const totalPow2 = await power.totalSupply.call();
-    const totalNtz2 = await token.totalSupply.call();
+    const totalBabz2 = await token.totalSupply.call();
     const investorsBal = await token.balanceOf.call(INVESTORS);
-    await token.dilutePower(totalNtz2.div(4));
-    const totalNtz3 = await token.totalSupply.call();
+    await token.dilutePower(totalBabz2.div(4));
+    const totalBabz3 = await token.totalSupply.call();
     const totalPow3 = await power.totalSupply.call();
     // Investor Power Up, ETH to 10 percent
     await token.setMaxPower(totalPow3.div(2));
-    await token.transfer(powerAddr, totalNtz3.div(10), "0x00", { from: INVESTORS });
+    await token.transfer(powerAddr, totalBabz3.div(10), "0x00", { from: INVESTORS });
     const investorPow = await power.balanceOf.call(INVESTORS);
     // investor power should be 10%
     assert.equal(totalPow3.div(10).toNumber(), investorPow.toNumber());
