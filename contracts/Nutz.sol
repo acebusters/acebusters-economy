@@ -26,7 +26,7 @@ contract Nutz is ERC20 {
   string public symbol = "NTZ";
   uint256 public decimals = 12;
   uint256 INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-  uint256 BABBAGE = 1000000;   // 1 BABBAGE equals 1,000,000 WEI, used as price factor
+  uint256 MEGA_WEI = 1000000;   // 1 MEGA_WEI equals 1,000,000 WEI, used as price factor
 
   uint256 actSupply;
   // contract's ether balance, except all ether parked to be withdrawn
@@ -43,7 +43,7 @@ contract Nutz is ERC20 {
   // floor is the number of NTZ needed, no receive 1 ETH back
   // we say that floor is lower than ceiling, if the number of NTZ needed to sell
   // to receive the same amount of ETH as used in purchase, is higher.
-  uint256 public floor;
+  uint256 public setFloor;
   address[] public admins;
   address public powerAddr;
 
@@ -67,14 +67,25 @@ contract Nutz is ERC20 {
   function allowance(address _owner, address _spender) constant returns (uint) {
     return allowed[_owner][_spender];
   }
-  
+
+  // returns either the setFloor, or if reserve does not suffice
+  // for active supply, returns maxFloor
+  function floor() constant returns (uint256) {
+    if (reserve == 0) {
+      return INFINITY;
+    }
+    uint256 maxFloor = actSupply.mul(MEGA_WEI).div(reserve);
+    // return max of maxFloor or setFloor
+    return maxFloor >= setFloor ? maxFloor : setFloor;
+  }
+
   function Nutz(uint256 _downTime) {
     admins.length = 1;
     admins[0] = msg.sender;
     // initial purchase price
     ceiling = 0;
     // initial sale price
-    floor = INFINITY;
+    setFloor = INFINITY;
     powerAddr = new Power(address(this), _downTime);
   }
 
@@ -88,9 +99,10 @@ contract Nutz is ERC20 {
   // ############################################
   
   function _sellTokens(address _from, uint256 _amountBabz) internal returns (bool) {
-    assert(floor != INFINITY);
+    uint256 effectiveFloor = floor();
+    assert(effectiveFloor != INFINITY);
 
-    uint256 amountWei = _amountBabz.mul(BABBAGE).div(floor);
+    uint256 amountWei = _amountBabz.mul(MEGA_WEI).div(effectiveFloor);
     // make sure power pool shrinks proportional to economy
     uint256 powerPool = balances[powerAddr];
     if (powerPool > 0) {
@@ -186,7 +198,7 @@ contract Nutz is ERC20 {
   }
   
   function moveCeiling(uint256 _newCeiling) onlyAdmins {
-    assert(_newCeiling <= floor);
+    assert(_newCeiling <= setFloor);
     ceiling = _newCeiling;
   }
   
@@ -196,10 +208,10 @@ contract Nutz is ERC20 {
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     if (_newFloor > 0) {
-      uint256 newReserveNeeded = actSupply.mul(BABBAGE).div(_newFloor);
+      uint256 newReserveNeeded = actSupply.mul(MEGA_WEI).div(_newFloor);
       assert(reserve >= newReserveNeeded);
     }
-    floor = _newFloor;
+    setFloor = _newFloor;
   }
 
   function allocateEther(uint256 _amountWei, address _beneficiary) onlyAdmins {
@@ -208,7 +220,7 @@ contract Nutz is ERC20 {
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
     uint256 leftReserve = reserve.sub(_amountWei);
-    assert(leftReserve >= actSupply.mul(BABBAGE).div(floor));
+    assert(leftReserve >= actSupply.mul(MEGA_WEI).div(setFloor));
     reserve = reserve.sub(_amountWei);
     allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountWei);
   }
@@ -241,7 +253,7 @@ contract Nutz is ERC20 {
     // disable purchases if ceiling set to 0
     assert(ceiling > 0);
 
-    uint256 amountBabz = msg.value.mul(ceiling).div(BABBAGE);
+    uint256 amountBabz = msg.value.mul(ceiling).div(MEGA_WEI);
     // avoid deposits that issue nothing
     // might happen with very large ceiling
     assert(amountBabz > 0);

@@ -1,4 +1,5 @@
 const Nutz = artifacts.require('./Nutz.sol');
+const NutzMock = artifacts.require('./helpers/NutzMock.sol');
 const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol');
 const assertJump = require('./helpers/assertJump');
 const BigNumber = require('bignumber.js');
@@ -35,7 +36,6 @@ contract('Nutz', (accounts) => {
     await token.moveCeiling(1000);
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
-    const HALF_ETH = web3.toWei(0.5, 'ether');
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
     let babzBalance = await token.balanceOf.call(accounts[0]);
@@ -49,6 +49,7 @@ contract('Nutz', (accounts) => {
     assert.equal(supplyBabz.toNumber(), babzBalance.div(2).toNumber(), 'token wasn\'t destroyed');
     // check allocation and reserve
     let allocationWei = await token.allowance.call(token.address, accounts[0]);
+    const HALF_ETH = web3.toWei(0.5, 'ether');
     assert.equal(allocationWei.toString(), HALF_ETH, 'ether wasn\'t allocated for withdrawal');
     const reserveWei = await token.reserve.call();
     assert.equal(reserveWei.toString(), HALF_ETH, 'ether allocation wasn\'t deducted from reserve');
@@ -74,7 +75,19 @@ contract('Nutz', (accounts) => {
 
   it('should allow to disable transfer to non-contract accounts.');
 
-  it('should adjust getFloor automatically when active supply inflated');
+  it('should adjust getFloor automatically when active supply inflated', async () => {
+    // create token contract, and issue some tokens that are not backed by ETH
+    const token = await NutzMock.new(12000000000000000);
+    // purchase some tokens with ether
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
+    await web3.eth.transactionMined(txHash);
+    
+    const bal = await token.balanceOf.call(accounts[0]);
+    // sell more tokens than issued by eth
+    await token.transfer(token.address, bal, "0x00");
+    const reserve = await token.reserve.call();
+    assert.equal(reserve.toNumber(), 0, 'reserve has not been emptied');
+  });
 
   it('should adjust floor in sell automatically when active supply inflated');
 
@@ -87,11 +100,11 @@ contract('Nutz', (accounts) => {
     const token = await Nutz.new(0);
     await token.moveCeiling(1500);
     await token.moveFloor(3000);
-    const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
     assert.equal(ceiling.toNumber(), 1500, 'setting ceiling failed');
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
+    const floor = await token.floor.call();
     const reserveWei = await token.reserve.call();
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'reserve incorrect');
     const babzBalance = await token.balanceOf.call(accounts[0]);
@@ -170,11 +183,11 @@ contract('Nutz', (accounts) => {
     const token = await Nutz.new(0);
     await token.moveCeiling(1500);
     await token.moveFloor(2000);
-    const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
     assert.equal(ceiling.toNumber(), 1500, 'setting ceiling failed');
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
+    const floor = await token.floor.call();
     const reserveWei = await token.reserve.call();
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'reserve incorrect');
     const babzBalance = await token.balanceOf.call(accounts[0]);
