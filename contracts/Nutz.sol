@@ -107,30 +107,30 @@ contract Nutz is ERC20 {
 
   // withdraw accumulated balance, called by seller or beneficiary
   function _claimEther(address _sender, address _to) internal {
-    uint256 amountEth = allowed[address(this)][_sender];
-    assert(0 < amountEth && amountEth <= this.balance);
+    uint256 amountWei = allowed[address(this)][_sender];
+    assert(0 < amountWei && amountWei <= this.balance);
     allowed[address(this)][_sender] = 0;
-    assert(_to.send(amountEth));
+    assert(_to.send(amountWei));
   }
 
-  function _transfer(address _from, address _to, uint256 _amountNtz, bytes _data) internal returns (bool) {
+  function _transfer(address _from, address _to, uint256 _amountBabz, bytes _data) internal returns (bool) {
     bytes memory data;
     // power up
     if (_to == powerAddr) {
       data = new bytes(32);
       uint ts = totalSupply();
       assembly { mstore(add(data, 32), ts) }
-      actSupply = actSupply.sub(_amountNtz);
+      actSupply = actSupply.sub(_amountBabz);
     } else {
       data = _data;
     }
     // power down
     if (_from == powerAddr) {
-      actSupply = actSupply.add(_amountNtz);
+      actSupply = actSupply.add(_amountBabz);
     }
 
-    balances[_from] = balances[_from].sub(_amountNtz);
-    balances[_to] = balances[_to].add(_amountNtz);
+    balances[_from] = balances[_from].sub(_amountBabz);
+    balances[_to] = balances[_to].add(_amountBabz);
 
     // erc223: Retrieve the size of the code on target address, this needs assembly .
     uint256 codeLength;
@@ -139,10 +139,10 @@ contract Nutz is ERC20 {
     }
     if(codeLength>0) {
       ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
-      receiver.tokenFallback(_from, _amountNtz, data);
+      receiver.tokenFallback(_from, _amountBabz, data);
     }
 
-    Transfer(_from, _to, _amountNtz);
+    Transfer(_from, _to, _amountBabz);
     return true;
   }
 
@@ -213,11 +213,11 @@ contract Nutz is ERC20 {
     allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountWei);
   }
 
-  function dilutePower(uint256 _amountNtz) onlyAdmins {
+  function dilutePower(uint256 _amountBabz) onlyAdmins {
     uint256 burn = balances[address(this)];
     uint256 totalSupply = actSupply.add(balances[powerAddr]).add(burn);
-    assert(Power(powerAddr).dilutePower(totalSupply, _amountNtz));
-    balances[address(this)] = burn.add(_amountNtz);
+    assert(Power(powerAddr).dilutePower(totalSupply, _amountBabz));
+    balances[address(this)] = burn.add(_amountBabz);
   }
 
   function setMaxPower(uint256 _maxPower) onlyAdmins {
@@ -241,20 +241,31 @@ contract Nutz is ERC20 {
     // disable purchases if ceiling set to 0
     assert(ceiling > 0);
 
-    uint256 amountToken = msg.value.mul(ceiling).div(BABBAGE);
+    uint256 amountBabz = msg.value.mul(ceiling).div(BABBAGE);
     // avoid deposits that issue nothing
     // might happen with very large ceiling
-    assert(amountToken > 0);
+    assert(amountBabz > 0);
 
     reserve = reserve.add(msg.value);
     // make sure power pool grows proportional to economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint256 powerShare = balances[powerAddr].mul(amountToken).div(actSupply.add(balances[address (this)]));
+      uint256 powerShare = balances[powerAddr].mul(amountBabz).div(actSupply.add(balances[address (this)]));
       balances[powerAddr] = balances[powerAddr].add(powerShare);
     }
-    actSupply = actSupply.add(amountToken);
-    balances[msg.sender] = balances[msg.sender].add(amountToken);
-    Purchase(msg.sender, amountToken);
+    actSupply = actSupply.add(amountBabz);
+    balances[msg.sender] = balances[msg.sender].add(amountBabz);
+    // erc223: Retrieve the size of the code on target address, this needs assembly .
+    uint256 codeLength;
+    address to = msg.sender;
+    assembly {
+      codeLength := extcodesize(to)
+    }
+    if(codeLength > 0) {
+      ERC223ReceivingContract receiver = ERC223ReceivingContract(to);
+      bytes memory empty;
+      receiver.tokenFallback(address(this), amountBabz, empty);
+    }
+    Purchase(msg.sender, amountBabz);
   }
 
 
@@ -264,47 +275,47 @@ contract Nutz is ERC20 {
   // ########### PUBLIC FUNCTIONS ###############
   // ############################################
   
-  function approve(address _spender, uint256 _amountNtz) {
+  function approve(address _spender, uint256 _amountBabz) {
     assert(_spender != address(this));
     assert(msg.sender != _spender);
-    assert(_amountNtz != 0);
-    allowed[msg.sender][_spender] = _amountNtz;
-    Approval(msg.sender, _spender, _amountNtz);
+    assert(_amountBabz != 0);
+    allowed[msg.sender][_spender] = _amountBabz;
+    Approval(msg.sender, _spender, _amountBabz);
   }
 
-  function transfer(address _to, uint256 _amountNtz) returns (bool) {
+  function transfer(address _to, uint256 _amountBabz) returns (bool) {
     bytes memory empty;
-    return transfer(_to, _amountNtz, empty);
+    return transfer(_to, _amountBabz, empty);
   }
 
-  function transData(address _to, uint256 _amountNtz, bytes _data) returns (bool) {
-    return transfer(_to, _amountNtz, _data);
+  function transData(address _to, uint256 _amountBabz, bytes _data) returns (bool) {
+    return transfer(_to, _amountBabz, _data);
   }
 
-  function transfer(address _to, uint256 _amountNtz, bytes _data) returns (bool) {
-    assert(_amountNtz != 0);
+  function transfer(address _to, uint256 _amountBabz, bytes _data) returns (bool) {
+    assert(_amountBabz != 0);
     // sell tokens
     if (_to == address(this)) {
-      return _sellTokens(msg.sender, _amountNtz);
+      return _sellTokens(msg.sender, _amountBabz);
     }
-    return _transfer(msg.sender, _to, _amountNtz, _data);
+    return _transfer(msg.sender, _to, _amountBabz, _data);
   }
 
-  function transferFrom(address _from, address _to, uint256 _amountNtz) returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _amountBabz) returns (bool) {
     assert(_from != _to);
     // claim ether
-    if (_from == address(this) && _amountNtz == 0) {
+    if (_from == address(this) && _amountBabz == 0) {
       _claimEther(msg.sender, _to);
       return true;
     }
-    assert(_amountNtz > 0);
+    assert(_amountBabz > 0);
     // sell tokens
     if (_to == address(this)) {
-      return _sellTokens(_from, _amountNtz);
+      return _sellTokens(_from, _amountBabz);
     }
-    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amountNtz);
+    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amountBabz);
     bytes memory empty;
-    return _transfer(_from, _to, _amountNtz, empty);
+    return _transfer(_from, _to, _amountBabz, empty);
   }
 
 }
