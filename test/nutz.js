@@ -4,19 +4,18 @@ const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol')
 const assertJump = require('./helpers/assertJump');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
-const BYTES_32 = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
+const babz = (ntz) => new BigNumber(NTZ_DECIMALS).mul(ntz);
 const PRICE_FACTOR = new BigNumber(10).pow(6);
 const ONE_ETH = web3.toWei(1, 'ether');
 
 contract('Nutz', (accounts) => {
-  
 
   it('should allow to purchase', async () => {
     // create token contract
-    const token = await Nutz.new(3600);
-    await token.moveCeiling(30000);
-    const ceiling = await token.ceiling.call();
+    const ceiling = new BigNumber(30000);
+    const token = await NutzMock.new(0, 0, ceiling, INFINITY);
     // purchase some tokens with ether
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
@@ -31,11 +30,8 @@ contract('Nutz', (accounts) => {
 
   it('should allow to sell', async () => {
     // create contract and purchase tokens for 1 ether
-    const token = await Nutz.new(0);
-    await token.moveFloor(1000);
-    await token.moveCeiling(1000);
-    const floor = await token.floor.call();
-    const ceiling = await token.ceiling.call();
+    const ceiling = new BigNumber(1000);
+    const token = await NutzMock.new(0, 0, ceiling, 1000);
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
     let babzBalance = await token.balanceOf.call(accounts[0]);
@@ -60,12 +56,46 @@ contract('Nutz', (accounts) => {
     // TODO: check my ether balance increased
   });
 
-  it('should implement emergency switch');
+  it('setting floor to infinity should disable sell', async () => {
+    // create contract and purchase tokens for 1 ether
+    const token = await NutzMock.new(0, 0, 1000, 1000);
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
+    await web3.eth.transactionMined(txHash);
+    let babzBalance = await token.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance, babz(1000).toNumber(), 'token wasn\'t issued to account');
+    // set floor to infinity
+    await token.moveFloor(INFINITY);
+    // try sell half of the tokens
+    try {
+      await token.transfer(token.address, babzBalance.div(2), "0x00");
+    } catch(error) {
+      return assertJump(error);
+    }
+    assert.fail('should have thrown before');
+  });
+
+  it('setting floor to infinity should disable claim', async () => {
+    // create contract and purchase tokens for 1 ether
+    const token = await NutzMock.new(0, 0, 1000, 1000);
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
+    await web3.eth.transactionMined(txHash);
+    let babzBalance = await token.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance, babz(1000).toNumber(), 'token wasn\'t issued to account');
+    // try sell half of the tokens
+    await token.transfer(token.address, babzBalance.div(2), "0x00");
+    // set floor to infinity
+    await token.moveFloor(INFINITY);
+    try {
+      await token.transferFrom(token.address, accounts[0], 0);
+    } catch(error) {
+      return assertJump(error);
+    }
+    assert.fail('should have thrown before');
+  });
 
   it('should call erc223 when purchase', async () => {
     let receiver = await ERC223ReceiverMock.new();
-    const token = await Nutz.new(0);
-    await token.moveCeiling(1500);
+    const token = await NutzMock.new(0, 0, 1500, INFINITY);
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: receiver.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
     await receiver.forward(token.address, ONE_ETH);
@@ -77,7 +107,7 @@ contract('Nutz', (accounts) => {
 
   it('should adjust getFloor automatically when active supply inflated', async () => {
     // create token contract, and issue some tokens that are not backed by ETH
-    const token = await NutzMock.new(12000000000000000);
+    const token = await NutzMock.new(0, babz(12000), 12000, 15000);
     // purchase some tokens with ether
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
@@ -89,19 +119,15 @@ contract('Nutz', (accounts) => {
     assert.equal(reserve.toNumber(), 0, 'reserve has not been emptied');
   });
 
-  it('should adjust floor in sell automatically when active supply inflated');
-
   it('should allow to slash power balance');
 
   it('should allow to slash down request');
 
   it('allocate_funds_to_beneficiary and claim_revenue', async () => {
     // create token contract, default ceiling == floor
-    const token = await Nutz.new(0);
-    await token.moveCeiling(1500);
-    await token.moveFloor(3000);
-    const ceiling = await token.ceiling.call();
-    assert.equal(ceiling.toNumber(), 1500, 'setting ceiling failed');
+    const ceiling = new BigNumber(1500);
+    const token = await NutzMock.new(0, 0, ceiling, 3000);
+    // purchase NTZ for 1 ETH
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
     const floor = await token.floor.call();
@@ -123,18 +149,17 @@ contract('Nutz', (accounts) => {
 
   it('should handle The sale administrator sets floor = infinity, ceiling = 0', async () => {
     // create token contract, default ceiling == floor
-    const token = await Nutz.new(0);
-    await token.moveCeiling(100);
-    let ceiling = await token.ceiling.call();
+    let ceiling = new BigNumber(100);
+    const token = await NutzMock.new(0, 0, ceiling, INFINITY);
     let txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
     const babzBalanceBefore = await token.balanceOf.call(accounts[0]);
     assert.equal(babzBalanceBefore.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'token wasn\'t issued to account');
-    await token.moveFloor(BYTES_32);
+    await token.moveFloor(INFINITY);
     const floor = await token.floor.call();
     await token.moveCeiling(0);
     ceiling = await token.ceiling.call();
-    assert.equal(floor.toNumber(), BYTES_32, 'setting floor failed');
+    assert.equal(floor.toNumber(), INFINITY, 'setting floor failed');
     assert.equal(ceiling.toNumber(), 0, 'setting ceiling failed');
     // try purchasing some tokens with ether
     try {
@@ -156,9 +181,8 @@ contract('Nutz', (accounts) => {
 
   it('the sale administrator can’t raise the floor price if doing so would make it unable to purchase all of the tokens at the floor price', async () => {
     // create contract and buy some tokens
-    const token = await Nutz.new(0);
-    await token.moveCeiling(4000);
-    let ceiling = await token.ceiling.call();
+    let ceiling = new BigNumber(4000);
+    const token = await NutzMock.new(0, 0, ceiling, INFINITY);
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
     let supplyBabz = await token.activeSupply.call(accounts[0]);
@@ -180,11 +204,8 @@ contract('Nutz', (accounts) => {
 
   it('allocate_funds_to_beneficiary fails if allocating those funds would mean that the sale mechanism is no longer able to buy back all outstanding tokens',  async () => {
     // create token contract, default ceiling == floor
-    const token = await Nutz.new(0);
-    await token.moveCeiling(1500);
-    await token.moveFloor(2000);
-    const ceiling = await token.ceiling.call();
-    assert.equal(ceiling.toNumber(), 1500, 'setting ceiling failed');
+    const ceiling = new BigNumber(1500);
+    const token = await NutzMock.new(0, 0, ceiling, 2000);
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
     const floor = await token.floor.call();
@@ -205,9 +226,8 @@ contract('Nutz', (accounts) => {
 
   it('should return correct balances after transfer', async () => {
     // create contract and buy some tokens
-    const token = await Nutz.new(0);
-    await token.moveCeiling(100);
-    const ceiling = await token.ceiling.call();
+    const ceiling = new BigNumber(100);
+    const token = await NutzMock.new(0, 0, ceiling, INFINITY);
     const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
     await web3.eth.transactionMined(txHash);
     let babzBalance = await token.balanceOf.call(accounts[0]);

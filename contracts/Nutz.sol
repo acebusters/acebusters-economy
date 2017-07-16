@@ -43,9 +43,12 @@ contract Nutz is ERC20 {
   // floor is the number of NTZ needed, no receive 1 ETH back
   // we say that floor is lower than ceiling, if the number of NTZ needed to sell
   // to receive the same amount of ETH as used in purchase, is higher.
-  uint256 public setFloor;
+  uint256 setFloor;
   address[] public admins;
   address public powerAddr;
+
+  // this flag allows denies deposits of NTZ into non-contract accounts
+  bool public onlyContractHolders = true;
 
   // returns balance
   function balanceOf(address _owner) constant returns (uint) {
@@ -86,6 +89,7 @@ contract Nutz is ERC20 {
     ceiling = 0;
     // initial sale price
     setFloor = INFINITY;
+    onlyContractHolders = true;
     powerAddr = new Power(address(this), _downTime);
   }
 
@@ -119,10 +123,25 @@ contract Nutz is ERC20 {
 
   // withdraw accumulated balance, called by seller or beneficiary
   function _claimEther(address _sender, address _to) internal {
+    assert(setFloor < INFINITY);
     uint256 amountWei = allowed[address(this)][_sender];
     assert(0 < amountWei && amountWei <= this.balance);
     allowed[address(this)][_sender] = 0;
     assert(_to.send(amountWei));
+  }
+
+  function _checkDestination(address _from, address _to, uint256 _value, bytes _data) {
+    // erc223: Retrieve the size of the code on target address, this needs assembly .
+    uint256 codeLength;
+    assembly {
+      codeLength := extcodesize(_to)
+    }
+    if(codeLength>0) {
+      ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
+      receiver.tokenFallback(_from, _value, _data);
+    } else {
+      assert(onlyContractHolders == false);
+    }
   }
 
   function _transfer(address _from, address _to, uint256 _amountBabz, bytes _data) internal returns (bool) {
@@ -144,15 +163,7 @@ contract Nutz is ERC20 {
     balances[_from] = balances[_from].sub(_amountBabz);
     balances[_to] = balances[_to].add(_amountBabz);
 
-    // erc223: Retrieve the size of the code on target address, this needs assembly .
-    uint256 codeLength;
-    assembly {
-      codeLength := extcodesize(_to)
-    }
-    if(codeLength>0) {
-      ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
-      receiver.tokenFallback(_from, _amountBabz, data);
-    }
+    _checkDestination(_from, _to, _amountBabz, data);
 
     Transfer(_from, _to, _amountBabz);
     return true;
@@ -266,17 +277,10 @@ contract Nutz is ERC20 {
     }
     actSupply = actSupply.add(amountBabz);
     balances[msg.sender] = balances[msg.sender].add(amountBabz);
-    // erc223: Retrieve the size of the code on target address, this needs assembly .
-    uint256 codeLength;
-    address to = msg.sender;
-    assembly {
-      codeLength := extcodesize(to)
-    }
-    if(codeLength > 0) {
-      ERC223ReceivingContract receiver = ERC223ReceivingContract(to);
-      bytes memory empty;
-      receiver.tokenFallback(address(this), amountBabz, empty);
-    }
+
+    bytes memory empty;
+    _checkDestination(address(this), msg.sender, amountBabz, empty);
+
     Purchase(msg.sender, amountBabz);
   }
 

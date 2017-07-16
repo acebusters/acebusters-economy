@@ -1,7 +1,9 @@
 const Nutz = artifacts.require('./Nutz.sol');
+const NutzMock = artifacts.require('./helpers/NutzMock.sol');
 const Power = artifacts.require('./Power.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
+const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
 const PRICE_FACTOR = new BigNumber(10).pow(6);
 const DOWNTIME = 12*7*24*3600; // 3 month
@@ -23,8 +25,7 @@ contract('Power', (accounts) => {
     const ALICE = accounts[0];
     const BOB = accounts[1];
 
-    const token = await Nutz.new(DOWNTIME);
-    await token.moveCeiling(CEILING_PRICE);
+    const token = await NutzMock.new(DOWNTIME, 0, CEILING_PRICE, INFINITY);
     const powerAddr = await token.powerAddr.call();
     const power = Power.at(powerAddr);
     
@@ -83,10 +84,9 @@ contract('Power', (accounts) => {
   });
 
   it('should allow to do secondary round', async () => {
-    const token = await Nutz.new(DOWNTIME);
+    const token = await NutzMock.new(DOWNTIME, 0, CEILING_PRICE * 20, INFINITY);
     const powerAddr = await token.powerAddr.call();
     const power = Power.at(powerAddr);
-    await token.moveCeiling(CEILING_PRICE * 20);
     // Founder Buy in 
     const FOUNDERS = accounts[1];
     const INVESTORS = accounts[2];
@@ -108,6 +108,7 @@ contract('Power', (accounts) => {
     // Investor buy in, 10 ETH
     // increase token price for investors
     await token.moveCeiling(CEILING_PRICE);
+    await token.moveFloor(CEILING_PRICE * 2);
     const txHash2 = web3.eth.sendTransaction({ gas: 300000, from: INVESTORS, to: token.address, value: WEI_AMOUNT * 7 });
     await web3.eth.transactionMined(txHash1);
     // Invetors Burn  
