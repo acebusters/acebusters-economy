@@ -103,7 +103,17 @@ contract('Nutz', (accounts) => {
     assert(isCalled, 'erc223 interface has not been invoked on purchase');
   });
 
-  it('should allow to disable transfer to non-contract accounts.');
+  it('should allow to disable transfer to non-contract accounts.', async () => {
+    const token = await NutzMock.new(0, babz(12000), 0, INFINITY);
+    const bal = await token.balanceOf.call(accounts[0]);
+    await token.setOnlyContractHolders(true);
+    try {
+      await token.transfer(accounts[1], bal.div(2), "0x00");
+    } catch(error) {
+      return assertJump(error);
+    }
+    assert.fail('should have thrown before');
+  });
 
   it('should adjust getFloor automatically when active supply inflated', async () => {
     // create token contract, and issue some tokens that are not backed by ETH

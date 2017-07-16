@@ -225,6 +225,10 @@ contract Nutz is ERC20 {
     setFloor = _newFloor;
   }
 
+  function setOnlyContractHolders(bool _onlyContractHolders) onlyAdmins {
+    onlyContractHolders = _onlyContractHolders;
+  }
+
   function allocateEther(uint256 _amountWei, address _beneficiary) onlyAdmins {
     assert(_amountWei > 0);
     // allocateEther fails if allocating those funds would mean that the
