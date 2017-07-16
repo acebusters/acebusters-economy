@@ -129,10 +129,6 @@ contract('Nutz', (accounts) => {
     assert.equal(reserve.toNumber(), 0, 'reserve has not been emptied');
   });
 
-  it('should allow to slash power balance');
-
-  it('should allow to slash down request');
-
   it('allocate_funds_to_beneficiary and claim_revenue', async () => {
     // create token contract, default ceiling == floor
     const ceiling = new BigNumber(1500);

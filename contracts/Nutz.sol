@@ -247,6 +247,22 @@ contract Nutz is ERC20 {
     balances[address(this)] = burn.add(_amountBabz);
   }
 
+  function slashPower(address _holder, uint256 _value, bytes32 _data) onlyAdmins {
+    // get the previously outstanding power of which _value was slashed
+    uint256 outstandingPower = Power(powerAddr).slashPower(_holder, _value, _data);
+    uint256 powerPool = balances[powerAddr];
+    uint256 slashingBabz = _value.mul(powerPool).div(outstandingPower);
+    balances[powerAddr] = powerPool.sub(slashingBabz);
+  }
+
+  function slashDownRequest(uint256 _pos, address _holder, uint256 _value, bytes32 _data) onlyAdmins {
+    // get the previously outstanding power of which _value was slashed
+    uint256 outstandingPower = Power(powerAddr).slashDownRequest(_pos, _holder, _value, _data);
+    uint256 powerPool = balances[powerAddr];
+    uint256 slashingBabz = _value.mul(powerPool).div(outstandingPower);
+    balances[powerAddr] = powerPool.sub(slashingBabz);
+  }
+
   function setMaxPower(uint256 _maxPower) onlyAdmins {
     Power(powerAddr).setMaxPower(_maxPower);
   }

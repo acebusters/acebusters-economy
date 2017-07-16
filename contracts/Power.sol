@@ -3,9 +3,12 @@ pragma solidity ^0.4.11;
 import "./SafeMath.sol";
 import "./ERC20.sol";
 import "./ERC20Basic.sol";
+import "./ERC223ReceivingContract.sol";
 
-contract Power is ERC20Basic {
+contract Power is ERC20Basic, ERC223ReceivingContract {
   using SafeMath for uint;
+
+  event Slashing(address indexed holder, uint value, bytes32 data);
 
   string public name = "Acebusters Power";
   string public symbol = "ABP";
@@ -147,6 +150,24 @@ contract Power is ERC20Basic {
     return true;
   }
 
+  function slashPower(address _holder, uint256 _value, bytes32 _data) onlyNutzContract returns (uint256) {
+    balances[_holder] = balances[_holder].sub(_value);
+    uint256 previouslyOutstanding = outstandingPower;
+    outstandingPower = previouslyOutstanding.sub(_value);
+    Slashing(_holder, _value, _data);
+    return previouslyOutstanding;
+  }
+
+  function slashDownRequest(uint256 _pos, address _holder, uint256 _value, bytes32 _data) onlyNutzContract returns (uint256) {
+    DownRequest storage req = downs[_pos];
+    assert(req.owner == _holder);
+    req.left = req.left.sub(_value);
+    uint256 previouslyOutstanding = outstandingPower;
+    outstandingPower = previouslyOutstanding.sub(_value);
+    Slashing(_holder, _value, _data);
+    return previouslyOutstanding;
+  }
+
 
 
 
@@ -182,6 +203,7 @@ contract Power is ERC20Basic {
     balances[msg.sender] = balances[msg.sender].sub(_amountPower);
     uint256 pos = downs.length++;
     downs[pos] = DownRequest(msg.sender, _amountPower, _amountPower, now);
+    Transfer(msg.sender, nutzAddr, _amountPower);
     return true;
   }
 

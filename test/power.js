@@ -5,6 +5,7 @@ const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
 const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
+const babz = (ntz) => new BigNumber(NTZ_DECIMALS).mul(ntz);
 const PRICE_FACTOR = new BigNumber(10).pow(6);
 const DOWNTIME = 12*7*24*3600; // 3 month
 const WEI_AMOUNT = web3.toWei(1, 'ether');
@@ -141,4 +142,30 @@ contract('Power', (accounts) => {
     let amountAllocated2 = await token.allowance.call(token.address, FOUNDERS);
     assert.equal(amountAllocated2, 0, 'ether wasn\'t received');
   });
+
+  it('should allow to slash down request');
+
+  it("should allow to slash power balance", async () => {
+    const token = await NutzMock.new(DOWNTIME, 0, CEILING_PRICE, INFINITY);
+    const power = Power.at(await token.powerAddr.call());
+    
+    // get some NTZ for 1 ETH
+    const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: accounts[0], to: token.address, value: WEI_AMOUNT });
+    await web3.eth.transactionMined(txHash1);
+    await token.dilutePower(0);
+    const authorizedPower = await power.totalSupply.call();
+    await token.setMaxPower(authorizedPower.div(2));
+
+    // powerup tokens
+    await token.transfer(power.address, babz(15000), "0x00");
+    const outstandingBefore = await power.activeSupply.call();
+    const powerPoolBefore = await token.balanceOf.call(power.address);
+
+    // slash tokens
+    await token.slashPower(accounts[0], babz(5000), "0x00");
+    const outstandingAfter = await power.activeSupply.call();
+    const powerPoolAfter = await token.balanceOf.call(power.address);
+    assert.equal(outstandingBefore.div(outstandingAfter).toNumber(), powerPoolBefore.div(powerPoolAfter).toNumber());
+  });
+
 });
