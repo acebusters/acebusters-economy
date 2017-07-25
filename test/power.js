@@ -1,6 +1,7 @@
 const Nutz = artifacts.require('./Nutz.sol');
 const NutzMock = artifacts.require('./helpers/NutzMock.sol');
 const Power = artifacts.require('./Power.sol');
+const PowerEvent = artifacts.require('./PowerEvent.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
 const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
@@ -84,7 +85,7 @@ contract('Power', (accounts) => {
     assert.equal(activeSupply.toNumber(), expectedActiveAfter.toNumber(), 'active supply wrong after power down.');
   });
 
-  it('should allow to do secondary round', async () => {
+  it('should allow to execute event manually', async () => {
     const token = await NutzMock.new(DOWNTIME, 0, CEILING_PRICE * 20, INFINITY);
     const powerAddr = await token.powerAddr.call();
     const power = Power.at(powerAddr);
@@ -98,7 +99,6 @@ contract('Power', (accounts) => {
     assert.equal(await token.balanceOf.call(FOUNDERS), expectedBal);
     // Founder Burn
     const totalBabz = await token.totalSupply.call();
-    await token.dilutePower(0);
     await token.dilutePower(totalBabz);
     const totalPow = await power.totalSupply.call();
     await token.setMaxPower(totalPow.div(2));

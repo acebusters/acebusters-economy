@@ -178,18 +178,24 @@ contract Nutz is ERC20 {
   // ############################################
 
   modifier onlyAdmins() {
+    bool isAdmin = false;
     for (uint256 i = 0; i < admins.length; i++) {
       if (msg.sender == admins[i]) {
-        _;
+        isAdmin = true;
       }
+    }
+    if (isAdmin == true) {
+      _;
+    } else {
+      revert();
     }
   }
 
   function addAdmin(address _admin) onlyAdmins {
     for (uint256 i = 0; i < admins.length; i++) {
-      assert(_admin != admins[i]);
+      require(_admin != admins[i]);
     }
-    assert(admins.length <= 10);
+    require(admins.length <= 10);
     admins[admins.length++] = _admin;
   }
 
