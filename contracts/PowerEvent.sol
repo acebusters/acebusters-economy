@@ -61,7 +61,7 @@ contract PowerEvent {
     initialReserve = NutzContract.reserve();
     uint256 ceiling = NutzContract.ceiling();
     // move ceiling
-    uint256 newCeiling = ceiling.mul(discountRate.add(RATE_FACTOR)).div(RATE_FACTOR);
+    uint256 newCeiling = ceiling.mul(discountRate).div(RATE_FACTOR);
     NutzContract.moveCeiling(newCeiling);
     // set state
     state = EventState.Collecting;
@@ -109,7 +109,7 @@ contract PowerEvent {
     var NutzContract = Nutz(ntzAddr);
     // move ceiling
     uint256 ceiling = NutzContract.ceiling();
-    uint256 newCeiling = ceiling.mul(RATE_FACTOR).div(RATE_FACTOR.add(discountRate));
+    uint256 newCeiling = ceiling.mul(RATE_FACTOR).div(discountRate);
     NutzContract.moveCeiling(newCeiling);
     // dilute power
     uint256 newSupply = NutzContract.totalSupply().sub(initialSupply);

@@ -1,76 +1,81 @@
-const NutzMock = artifacts.require('./helpers/NutzMock.sol');
+const Nutz = artifacts.require('./Nutz.sol');
 const Power = artifacts.require('./Power.sol');
 const PowerEvent = artifacts.require('./PowerEvent.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
-const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
 const babz = (ntz) => new BigNumber(NTZ_DECIMALS).mul(ntz);
-const PRICE_FACTOR = new BigNumber(10).pow(6);
-const DOWNTIME = 12*7*24*3600; // 3 month
-const WEI_AMOUNT = web3.toWei(1, 'ether');
-const CEILING_PRICE = 30000;
+const WEI_AMOUNT = web3.toWei(0.001, 'ether');
+const CEILING_PRICE = 20000;
 
 contract('PowerEvent', (accounts) => {
 
   it('should allow to execute event through policy', async () => {
-    const token = await NutzMock.new(DOWNTIME, 0, CEILING_PRICE * 20, INFINITY);
-    const powerAddr = await token.powerAddr.call();
-    const power = Power.at(powerAddr);
-    // Founder Buy in 
+    const token = await Nutz.new(0);
+    const power = Power.at(await token.powerAddr.call());
+    await token.moveCeiling(CEILING_PRICE);
+    await token.setOnlyContractHolders(false);
+
+
+    // prepare event #1
     const FOUNDERS = accounts[1];
-    const INVESTORS = accounts[2];
-    
-    const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: FOUNDERS, to: token.address, value: WEI_AMOUNT });
-    await web3.eth.transactionMined(txHash1);
-    const expectedBal = (WEI_AMOUNT * CEILING_PRICE * 20) / PRICE_FACTOR.toNumber();
-    assert.equal(await token.balanceOf.call(FOUNDERS), expectedBal);
-    // Founder Burn
-    const totalBabz = await token.totalSupply.call();
-    await token.dilutePower(totalBabz);
-    const totalPow = await power.totalSupply.call();
-    await token.setMaxPower(totalPow.div(2));
-    // Founder power up, 1 ETH to 50 percent
-    await token.transfer(powerAddr, expectedBal, "0x00", { from: FOUNDERS });
-    const founderPow = await power.balanceOf.call(FOUNDERS);
-    assert.equal(founderPow.toNumber(), totalPow.div(2).toNumber());
-    // prepare event
-    await token.moveCeiling(CEILING_PRICE / 2);
     const startTime = (Date.now() / 1000 | 0) - 60;
     const minDuration = 0;
     const maxDuration = 3600;
     const softCap = WEI_AMOUNT;
-    const hardCap = WEI_AMOUNT * 6;
-    const discountRate = 1000000; // 100% => receive double
-    const milestoneRecipients = [FOUNDERS];
-    const milestoneShares = [500000];
-    const event = await PowerEvent.new(token.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
-    // Investor buy in, 7 ETH
-    await token.addAdmin(event.address);
-    await event.startCollection();
-    const txHash2 = web3.eth.sendTransaction({ gas: 300000, from: INVESTORS, to: token.address, value: WEI_AMOUNT * 7 });
+    const hardCap = WEI_AMOUNT;
+    const discountRate = 60000000000; // make ceiling 1,200,000,000
+    const milestoneRecipients = [];
+    const milestoneShares = [];
+    const event1 = await PowerEvent.new(token.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+    await token.addAdmin(event1.address);
+    await event1.startCollection();
+    // event #1 - buyin
+    const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: FOUNDERS, to: token.address, value: WEI_AMOUNT });
     await web3.eth.transactionMined(txHash1);
-    // Invetors Burn  
-    const totalPow2 = await power.totalSupply.call();
-    const totalBabz2 = await token.totalSupply.call();
+    // event #1 - burn
+    await event1.stopCollection();
+    await event1.completeClosed();
+    // event #1 power up
+    await token.transfer(power.address, babz(1200000), "0x00", { from: FOUNDERS });
+    const totalPow1 = await power.totalSupply.call();
+    const founderPow1 = await power.balanceOf.call(FOUNDERS);
+    assert.equal(founderPow1.toNumber(), totalPow1.mul(0.5).toNumber());
+
+
+    // prepare event #2
+    const INVESTORS = accounts[2];
+    const EXEC_BOARD = accounts[3];
+    const GOVERNING_COUNCIL = accounts[4];
+    const softCap2 = WEI_AMOUNT * 5000;
+    const hardCap2 = WEI_AMOUNT * 30000;
+    const discountRate2 = 1500000; // 150% -> make ceiling 30,000
+    const milestoneRecipients2 = [EXEC_BOARD, GOVERNING_COUNCIL];
+    const milestoneShares2 = [200000, 5000]; // 20% and 0.5%
+    const event2 = await PowerEvent.new(token.address, startTime, minDuration, maxDuration, softCap2, hardCap2, discountRate2, milestoneRecipients2, milestoneShares2);
+    // event #2 - buy in
+    await token.addAdmin(event2.address);
+    await event2.startCollection();
+    const txHash2 = web3.eth.sendTransaction({ gas: 300000, from: INVESTORS, to: token.address, value: hardCap2 });
+    await web3.eth.transactionMined(txHash2);
+    // event #2 - burn
+    await event2.stopCollection();
+    await event2.completeClosed();
+    // event #2 - power up
     const investorsBal = await token.balanceOf.call(INVESTORS);
-    await event.stopCollection();
-    await event.completeClosed();
-    const totalBabz3 = await token.totalSupply.call();
-    const totalPow3 = await power.totalSupply.call();
-    // Investor Power Up, ETH to 10 percent
-    await token.transfer(powerAddr, totalBabz3.div(10), "0x00", { from: INVESTORS });
-    const investorPow = await power.balanceOf.call(INVESTORS);
-    // investor power should be 10%
-    assert.equal(totalPow3.div(10).toNumber(), investorPow.toNumber());
-    // check milestone payment
-    const payoutAmount = WEI_AMOUNT * 3.5;
-    let amountAllocated = await token.allowance.call(token.address, FOUNDERS);
-    assert.equal(payoutAmount, amountAllocated.toNumber(), 'ether wasn\'t allocated to beneficiary');
+    await token.transfer(power.address, investorsBal, "0x00", { from: INVESTORS });
+    // event #2 - milestone payment
     await token.moveFloor(CEILING_PRICE * 2);
-    await token.transferFrom(token.address, FOUNDERS, 0, { from: FOUNDERS });
-    let amountAllocated2 = await token.allowance.call(token.address, FOUNDERS);
-    assert.equal(amountAllocated2, 0, 'ether wasn\'t received');
+    let amountAllocated = await token.allowance.call(token.address, EXEC_BOARD);
+    assert.equal(amountAllocated.toNumber(), WEI_AMOUNT * 6000, 'ether wasn\'t allocated to beneficiary');
+    await token.transferFrom(token.address, FOUNDERS, 0, { from: EXEC_BOARD });
+
+    // check power allocation
+    const totalPow = await power.totalSupply.call();
+    const founderPow = await power.balanceOf.call(FOUNDERS);
+    const investorsPow = await power.balanceOf.call(INVESTORS);
+    assert.equal(founderPow.toNumber(), totalPow.mul(0.35).toNumber());
+    assert.equal(investorsPow.toNumber(), totalPow.mul(0.15).toNumber());
   });
 
 });
