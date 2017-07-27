@@ -40,7 +40,7 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
     uint256 left;
     uint256 start;
   }
-  DownRequest[] downs;
+  DownRequest[] public downs;
 
   function Power(address _nutzAddr, uint256 _downtime) {
     nutzAddr = _nutzAddr;
@@ -98,7 +98,7 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
 
     // prevent power down in tiny steps
     uint256 minStep = req.total.div(10);
-    assert(req.left <= minStep || minStep <= amountPow);
+    require(req.left <= minStep || minStep <= amountPow);
 
     // calculate token amount representing share of power
     var nutzContract = ERC20(nutzAddr);
@@ -129,12 +129,12 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
   // ############################################
 
   modifier onlyNutzContract() {
-    assert(msg.sender == nutzAddr);
+    require(msg.sender == nutzAddr);
     _;
   }
 
   function setMaxPower(uint256 _maxPower) onlyNutzContract {
-    assert(outstandingPower <= _maxPower && _maxPower < authorizedPower);
+    require(outstandingPower <= _maxPower && _maxPower < authorizedPower);
     maxPower = _maxPower;
   }
 
@@ -160,7 +160,7 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
 
   function slashDownRequest(uint256 _pos, address _holder, uint256 _value, bytes32 _data) onlyNutzContract returns (uint256) {
     DownRequest storage req = downs[_pos];
-    assert(req.owner == _holder);
+    require(req.owner == _holder);
     req.left = req.left.sub(_value);
     uint256 previouslyOutstanding = outstandingPower;
     outstandingPower = previouslyOutstanding.sub(_value);
@@ -178,27 +178,29 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
 
   // this is called when NTZ are deposited into the power pool
   function tokenFallback(address _from, uint256 _amountBabz, bytes _data) {
-    assert (msg.sender == nutzAddr);
+    require (msg.sender == nutzAddr);
     uint256 totalBabz;
     assembly {
       totalBabz := mload(add(_data, 32))
     }
-    assert(authorizedPower != 0 && _amountBabz != 0 && totalBabz != 0);
+    require(authorizedPower != 0);
+    require(_amountBabz != 0);
+    require(totalBabz != 0);
     uint256 amountPow = _amountBabz.mul(authorizedPower).div(totalBabz);
     // TODO: check amountPow is worth dealing with (not small percenage)
     // check pow limits
-    assert(outstandingPower.add(amountPow) <= maxPower);
+    require(outstandingPower.add(amountPow) <= maxPower);
     outstandingPower = outstandingPower.add(amountPow);
     balances[_from] = balances[_from].add(amountPow);
-    assert(balances[_from] >= authorizedPower.div(minShare));
+    require(balances[_from] >= authorizedPower.div(minShare));
   }
 
   // registers a powerdown request
   function transfer(address _to, uint256 _amountPower) returns (bool success) {
     // make Power not transferable
-    assert(_to == nutzAddr);
+    require(_to == nutzAddr);
     // prevent powering down tiny amounts
-    assert(_amountPower >= authorizedPower.div(minShare));
+    require(_amountPower >= authorizedPower.div(minShare));
 
     balances[msg.sender] = balances[msg.sender].sub(_amountPower);
     uint256 pos = downs.length++;

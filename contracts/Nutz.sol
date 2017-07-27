@@ -130,7 +130,7 @@ contract Nutz is ERC20 {
     assert(_to.send(amountWei));
   }
 
-  function _checkDestination(address _from, address _to, uint256 _value, bytes _data) {
+  function _checkDestination(address _from, address _to, uint256 _value, bytes _data) internal {
     // erc223: Retrieve the size of the code on target address, this needs assembly .
     uint256 codeLength;
     assembly {
@@ -318,9 +318,9 @@ contract Nutz is ERC20 {
   // ############################################
   
   function approve(address _spender, uint256 _amountBabz) {
-    assert(_spender != address(this));
-    assert(msg.sender != _spender);
-    assert(_amountBabz != 0);
+    require(_spender != address(this));
+    require(msg.sender != _spender);
+    require(_amountBabz != 0);
     allowed[msg.sender][_spender] = _amountBabz;
     Approval(msg.sender, _spender, _amountBabz);
   }
@@ -335,7 +335,7 @@ contract Nutz is ERC20 {
   }
 
   function transfer(address _to, uint256 _amountBabz, bytes _data) returns (bool) {
-    assert(_amountBabz != 0);
+    require(_amountBabz != 0);
     // sell tokens
     if (_to == address(this)) {
       return _sellTokens(msg.sender, _amountBabz);
@@ -344,13 +344,13 @@ contract Nutz is ERC20 {
   }
 
   function transferFrom(address _from, address _to, uint256 _amountBabz) returns (bool) {
-    assert(_from != _to);
+    require(_from != _to);
     // claim ether
     if (_from == address(this) && _amountBabz == 0) {
       _claimEther(msg.sender, _to);
       return true;
     }
-    assert(_amountBabz > 0);
+    require(_amountBabz > 0);
     // sell tokens
     if (_to == address(this)) {
       return _sellTokens(_from, _amountBabz);
