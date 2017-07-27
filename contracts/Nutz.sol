@@ -355,9 +355,19 @@ contract Nutz is ERC20 {
     if (_to == address(this)) {
       return _sellTokens(_from, _amountBabz);
     }
-    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amountBabz);
     bytes memory empty;
-    return _transfer(_from, _to, _amountBabz, empty);
+    if (_from == powerAddr) {
+      // 3rd party power up:
+      // - first transfer NTZ to account of receiver
+      // - then power up that amount of NTZ in the account of receiver
+      balances[msg.sender] = balances[msg.sender].sub(_amountBabz);
+      balances[_to] = balances[_to].add(_amountBabz);
+      return _transfer(_to, _from, _amountBabz, empty);
+    } else {
+      // usual transfer
+      allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amountBabz);
+      return _transfer(_from, _to, _amountBabz, empty);
+    }
   }
 
 }

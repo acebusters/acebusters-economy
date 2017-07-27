@@ -150,15 +150,17 @@ contract('Power', (accounts) => {
     const power = Power.at(await token.powerAddr.call());
     
     // get some NTZ for 1 ETH
-    const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: accounts[0], to: token.address, value: WEI_AMOUNT });
+    const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: accounts[1], to: token.address, value: WEI_AMOUNT });
     await web3.eth.transactionMined(txHash1);
     await token.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
     await token.setMaxPower(authorizedPower.div(2));
 
-    // powerup tokens
-    await token.transfer(power.address, babz(15000), "0x00");
+    // powerup tokens ( try 3rd party powerUp )
+    await token.transferFrom(power.address, accounts[0], babz(15000), { from: accounts[1] });
     const outstandingBefore = await power.activeSupply.call();
+    const bal = await power.balanceOf.call(accounts[0]);
+    assert.equal(bal.toNumber(), babz(15000), '3rd party powerup failed');
     const powerPoolBefore = await token.balanceOf.call(power.address);
 
     // slash tokens
