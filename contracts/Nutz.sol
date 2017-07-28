@@ -7,8 +7,7 @@ import "./ERC223ReceivingContract.sol";
 
 /**
  * Nutz implements a price floor and a price ceiling on the token being
- * sold. It is based of the zeppelin token contract. Nutz implements the
- * https://github.com/ethereum/EIPs/issues/20 interface.
+ * sold. It is based of the zeppelin token contract.
  */
 contract Nutz is ERC20 {
   using SafeMath for uint;
@@ -140,7 +139,7 @@ contract Nutz is ERC20 {
       ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
       receiver.tokenFallback(_from, _value, _data);
     } else {
-      assert(onlyContractHolders == false);
+      require(onlyContractHolders == false);
     }
   }
 
@@ -184,28 +183,26 @@ contract Nutz is ERC20 {
         isAdmin = true;
       }
     }
-    if (isAdmin == true) {
-      _;
-    } else {
-      revert();
-    }
+    require(isAdmin == true);
+    _;
   }
 
   function addAdmin(address _admin) onlyAdmins {
     for (uint256 i = 0; i < admins.length; i++) {
       require(_admin != admins[i]);
     }
-    require(admins.length <= 10);
+    require(admins.length < 10);
     admins[admins.length++] = _admin;
   }
 
   function removeAdmin(address _admin) onlyAdmins {
-    uint256 pos = 1337;
+    uint256 pos = admins.length;
     for (uint256 i = 0; i < admins.length; i++) {
       if (_admin == admins[i]) {
         pos = i;
       }
     }
+    require(pos < admins.length);
     // if not last element, switch with last
     if (pos < admins.length - 1) {
       admins[pos] = admins[admins.length - 1];
@@ -215,18 +212,18 @@ contract Nutz is ERC20 {
   }
   
   function moveCeiling(uint256 _newCeiling) onlyAdmins {
-    assert(_newCeiling <= setFloor);
+    require(_newCeiling <= setFloor);
     ceiling = _newCeiling;
   }
   
   function moveFloor(uint256 _newFloor) onlyAdmins {
-    assert(_newFloor >= ceiling);
+    require(_newFloor >= ceiling);
     // moveFloor fails if the administrator tries to push the floor so low
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     if (_newFloor > 0) {
       uint256 newReserveNeeded = actSupply.mul(MEGA_WEI).div(_newFloor);
-      assert(reserve >= newReserveNeeded);
+      require(reserve >= newReserveNeeded);
     }
     setFloor = _newFloor;
   }
@@ -236,12 +233,12 @@ contract Nutz is ERC20 {
   }
 
   function allocateEther(uint256 _amountWei, address _beneficiary) onlyAdmins {
-    assert(_amountWei > 0);
+    require(_amountWei > 0);
     // allocateEther fails if allocating those funds would mean that the
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
     uint256 leftReserve = reserve.sub(_amountWei);
-    assert(leftReserve >= actSupply.mul(MEGA_WEI).div(setFloor));
+    require(leftReserve >= actSupply.mul(MEGA_WEI).div(setFloor));
     reserve = reserve.sub(_amountWei);
     allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountWei);
   }
@@ -286,14 +283,14 @@ contract Nutz is ERC20 {
   }
   
   function purchaseTokens() payable {
-    assert(msg.value > 0);
+    require(msg.value > 0);
     // disable purchases if ceiling set to 0
-    assert(ceiling > 0);
+    require(ceiling > 0);
 
     uint256 amountBabz = msg.value.mul(ceiling).div(MEGA_WEI);
     // avoid deposits that issue nothing
     // might happen with very large ceiling
-    assert(amountBabz > 0);
+    require(amountBabz > 0);
 
     reserve = reserve.add(msg.value);
     // make sure power pool grows proportional to economy
