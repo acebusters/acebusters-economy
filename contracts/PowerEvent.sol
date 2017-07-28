@@ -13,7 +13,7 @@ contract PowerEvent {
   //   - closed, after collecting, if softcap reached
   //   - complete, after closed or failed, when job done
   enum EventState { Waiting, Collecting, Closed, Failed, Complete }
-  EventState state;
+  EventState public state;
   uint256 public RATE_FACTOR = 1000000;
 
   // Terms
