@@ -30,8 +30,9 @@ contract Nutz is ERC20 {
   uint256 actSupply;
   // contract's ether balance, except all ether parked to be withdrawn
   uint256 public reserve;
+  // burn pool - inactive supply
+  uint256 public burnPool;
   // balanceOf[powerAddr] returns power pool
-  // balanceOf[address(this)] returns burn pool
   mapping(address => uint) balances;
   // "allowed[address(this)][x]" ether parked to be withdraw
   mapping (address => mapping (address => uint)) allowed;
@@ -51,7 +52,7 @@ contract Nutz is ERC20 {
 
   // returns balance
   function balanceOf(address _owner) constant returns (uint) {
-    if (_owner == powerAddr || _owner == address(this)) {
+    if (_owner == powerAddr) {
       // do not return balance of pools in ERC20 interface
       return 0;
     } else {
@@ -62,7 +63,7 @@ contract Nutz is ERC20 {
 
   function totalSupply() constant returns (uint256) {
     // active supply + power pool + burn pool
-    return actSupply.add(balances[powerAddr]).add(balances[address(this)]);
+    return actSupply.add(balances[powerAddr]).add(burnPool);
   }
 
   function activeSupply() constant returns (uint256) {
@@ -254,10 +255,8 @@ contract Nutz is ERC20 {
   }
 
   function dilutePower(uint256 _amountBabz) onlyAdmins {
-    uint256 burn = balances[address(this)];
-    uint256 totalSupply = actSupply.add(balances[powerAddr]).add(burn);
-    assert(Power(powerAddr).dilutePower(totalSupply, _amountBabz));
-    balances[address(this)] = burn.add(_amountBabz);
+    assert(Power(powerAddr).dilutePower(totalSupply(), _amountBabz));
+    burnPool = burnPool.add(_amountBabz);
   }
 
   function slashPower(address _holder, uint256 _value, bytes32 _data) onlyAdmins {
@@ -305,7 +304,7 @@ contract Nutz is ERC20 {
     reserve = reserve.add(msg.value);
     // make sure power pool grows proportional to economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
-      uint256 powerShare = balances[powerAddr].mul(amountBabz).div(actSupply.add(balances[address (this)]));
+      uint256 powerShare = balances[powerAddr].mul(amountBabz).div(actSupply.add(burnPool));
       balances[powerAddr] = balances[powerAddr].add(powerShare);
     }
     actSupply = actSupply.add(amountBabz);
@@ -327,7 +326,7 @@ contract Nutz is ERC20 {
   function approve(address _spender, uint256 _amountBabz) {
     require(_spender != address(this));
     require(msg.sender != _spender);
-    require(_amountBabz != 0);
+    require(_amountBabz > 0);
     allowed[msg.sender][_spender] = _amountBabz;
     Approval(msg.sender, _spender, _amountBabz);
   }
