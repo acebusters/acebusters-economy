@@ -156,7 +156,7 @@ contract('Power', (accounts) => {
     await token.setMaxPower(authorizedPower);
 
     // powerup tokens ( try 3rd party powerUp )
-    await token.transferFrom(power.address, accounts[0], babz(15000), { from: accounts[1] });
+    await token.transferFrom(power.address, accounts[0], babz(15000), '0x00', { from: accounts[1] });
     const outstandingBefore = await power.activeSupply.call();
     const bal = await power.balanceOf.call(accounts[0]);
     assert.equal(bal.toNumber(), babz(15000), '3rd party powerup failed');

@@ -8,7 +8,7 @@ contract NutzMock is Nutz {
     // initial purchase price
     ceiling = _ceiling;
     // initial sale price
-    setFloor = _floor;
+    salePrice = _floor;
     onlyContractHolders = false;
 
     // initial balance (not backed by reserve)
