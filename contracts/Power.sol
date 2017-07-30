@@ -58,7 +58,9 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
   }
 
   function totalSupply() constant returns (uint256) {
-    return authorizedPower;
+    uint256 issuedPower = authorizedPower.div(2);
+    // return max of maxPower or issuedPower
+    return maxPower >= issuedPower ? maxPower : issuedPower;
   }
 
   function vestedDown(uint256 _pos, uint256 _now) constant returns (uint256) {
@@ -178,7 +180,7 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
 
   // this is called when NTZ are deposited into the power pool
   function tokenFallback(address _from, uint256 _amountBabz, bytes _data) {
-    require (msg.sender == nutzAddr);
+    require(msg.sender == nutzAddr);
     uint256 totalBabz;
     assembly {
       totalBabz := mload(add(_data, 32))
@@ -187,7 +189,6 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
     require(_amountBabz != 0);
     require(totalBabz != 0);
     uint256 amountPow = _amountBabz.mul(authorizedPower).div(totalBabz);
-    // TODO: check amountPow is worth dealing with (not small percenage)
     // check pow limits
     require(outstandingPower.add(amountPow) <= maxPower);
     outstandingPower = outstandingPower.add(amountPow);

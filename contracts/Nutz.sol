@@ -51,7 +51,13 @@ contract Nutz is ERC20 {
 
   // returns balance
   function balanceOf(address _owner) constant returns (uint) {
-    return balances[_owner];
+    if (_owner == powerAddr || _owner == address(this)) {
+      // do not return balance of pools in ERC20 interface
+      return 0;
+    } else {
+      // only return balance of active holders through ERC20 interface
+      return balances[_owner];
+    }
   }
 
   function totalSupply() constant returns (uint256) {
@@ -79,6 +85,10 @@ contract Nutz is ERC20 {
     uint256 maxFloor = actSupply.mul(MEGA_WEI).div(reserve);
     // return max of maxFloor or setFloor
     return maxFloor >= setFloor ? maxFloor : setFloor;
+  }
+
+  function powerPool() constant returns (uint256) {
+    return balances[powerAddr];
   }
 
   function Nutz(uint256 _downTime) {

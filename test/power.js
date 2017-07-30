@@ -20,7 +20,7 @@ contract('Power', (accounts) => {
     const power = Power.at(powerAddr);
     await token.dilutePower(10000);
     const authorizedShares = await power.totalSupply.call();
-    assert.equal(authorizedShares.toNumber(), 10000, 'shares not authorized');
+    assert.equal(authorizedShares.toNumber(), 5000, 'shares not authorized');
   });
 
   it("should allow to power up and power down with no burn.", async () => {
@@ -36,7 +36,7 @@ contract('Power', (accounts) => {
     await web3.eth.transactionMined(txHash1);
     await token.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
-    await token.setMaxPower(authorizedPower.div(2));
+    await token.setMaxPower(authorizedPower);
     const babzBalAlice = await token.balanceOf.call(ALICE);
     const expectedBal = (WEI_AMOUNT * CEILING_PRICE) / PRICE_FACTOR.toNumber();
     assert.equal(babzBalAlice.toNumber(), expectedBal, 'purchase failed');
@@ -49,7 +49,7 @@ contract('Power', (accounts) => {
     await token.transfer(power.address, ntz6k, "0x00");
     const powTotal = await power.totalSupply.call();
     const powBalAlice = await power.balanceOf.call(ALICE);
-    assert.equal(powBalAlice.toNumber(), powTotal.div(5).toNumber(), 'first power up failed');
+    assert.equal(powBalAlice.toNumber(), powTotal.div(2.5).toNumber(), 'first power up failed');
 
     // get some NTZ for 1 ETH with other account
     const txHash2 = web3.eth.sendTransaction({ gas: 200000, from: BOB, to: token.address, value: WEI_AMOUNT });
@@ -63,19 +63,19 @@ contract('Power', (accounts) => {
     await token.approve(accounts[2], ntz13k, {from: BOB});
     await token.transferFrom(BOB, power.address, ntz13k, {from: accounts[2]});
     const powBalBob = await power.balanceOf.call(BOB);
-    assert.equal(powBalBob.toNumber(), powTotal.div(5).toNumber(), 'second power up failed');
+    assert.equal(powBalBob.toNumber(), powTotal.div(2.5).toNumber(), 'second power up failed');
     
 
-    // pow10pc is 10% of total Power
-    const pow10pc = powBalAlice.div(2);
-    assert.equal(pow10pc.toNumber(), powTotal.div(10).toNumber());
+    // pow20pc is 20% of total Power
+    const pow20pc = powBalAlice.div(2);
+    assert.equal(pow20pc.toNumber(), powTotal.div(5).toNumber());
     // power down and check
     const babzBalAliceBefore = await token.balanceOf.call(ALICE);
     const babzActiveBefore = await token.activeSupply.call();
-    await power.transfer(token.address, pow10pc, "0x00");
+    await power.transfer(token.address, pow20pc, "0x00");
     await power.downTickTest(0, (Date.now() / 1000 | 0) + DOWNTIME);
     const powBalAliceAfter = await power.balanceOf.call(ALICE);
-    assert.equal(powBalAliceAfter.toNumber(), pow10pc.toNumber(), 'power down failed in Power contract');
+    assert.equal(powBalAliceAfter.toNumber(), pow20pc.toNumber(), 'power down failed in Power contract');
     // check balances in token contract
     const babzBalAliceAfter = await token.balanceOf.call(ALICE);
     const expectedBalAfter = babzBalAliceBefore.add(babzTotal2.div(10));
@@ -101,32 +101,31 @@ contract('Power', (accounts) => {
     const totalBabz = await token.totalSupply.call();
     await token.dilutePower(totalBabz);
     const totalPow = await power.totalSupply.call();
-    await token.setMaxPower(totalPow.div(2));
+    await token.setMaxPower(totalPow);
     // Founder power up, 1 ETH to 50 percent
     await token.transfer(powerAddr, expectedBal, "0x00", { from: FOUNDERS });
     const founderPow = await power.balanceOf.call(FOUNDERS);
-    assert.equal(founderPow.toNumber(), totalPow.div(2).toNumber());
+    assert.equal(founderPow.toNumber(), totalPow.toNumber());
     // Investor buy in, 10 ETH
     // increase token price for investors
     await token.moveCeiling(CEILING_PRICE);
     await token.moveFloor(CEILING_PRICE * 2);
     const txHash2 = web3.eth.sendTransaction({ gas: 300000, from: INVESTORS, to: token.address, value: WEI_AMOUNT * 7 });
     await web3.eth.transactionMined(txHash1);
-    // Invetors Burn  
-    const totalPow2 = await power.totalSupply.call();
+    // Invetors Burn
     const totalBabz2 = await token.totalSupply.call();
     const investorsBal = await token.balanceOf.call(INVESTORS);
     await token.dilutePower(totalBabz2.div(4));
     const totalBabz3 = await token.totalSupply.call();
     const totalPow3 = await power.totalSupply.call();
-    // Investor Power Up, ETH to 10 percent
-    await token.setMaxPower(totalPow3.div(2));
+    // Investor Power Up, ETH to 20 percent
+    await token.setMaxPower(totalPow3);
     await token.transfer(powerAddr, totalBabz3.div(10), "0x00", { from: INVESTORS });
     const investorPow = await power.balanceOf.call(INVESTORS);
-    // investor power should be 10%
-    assert.equal(totalPow3.div(10).toNumber(), investorPow.toNumber());
-    // founder power should be 40%
-    assert.equal(totalPow3.div(10).mul(4).toNumber(), founderPow.toNumber());
+    // investor power should be 20%
+    assert.equal(totalPow3.mul(0.2).toNumber(), investorPow.toNumber());
+    // founder power should be 80%
+    assert.equal(totalPow3.mul(0.8).toNumber(), founderPow.toNumber());
     // payout milestone 1 -> 10%
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
@@ -154,19 +153,19 @@ contract('Power', (accounts) => {
     await web3.eth.transactionMined(txHash1);
     await token.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
-    await token.setMaxPower(authorizedPower.div(2));
+    await token.setMaxPower(authorizedPower);
 
     // powerup tokens ( try 3rd party powerUp )
     await token.transferFrom(power.address, accounts[0], babz(15000), { from: accounts[1] });
     const outstandingBefore = await power.activeSupply.call();
     const bal = await power.balanceOf.call(accounts[0]);
     assert.equal(bal.toNumber(), babz(15000), '3rd party powerup failed');
-    const powerPoolBefore = await token.balanceOf.call(power.address);
+    const powerPoolBefore = await token.powerPool.call();
 
     // slash tokens
     await token.slashPower(accounts[0], babz(5000), "0x00");
     const outstandingAfter = await power.activeSupply.call();
-    const powerPoolAfter = await token.balanceOf.call(power.address);
+    const powerPoolAfter = await token.powerPool.call();
     assert.equal(outstandingBefore.div(outstandingAfter).toNumber(), powerPoolBefore.div(powerPoolAfter).toNumber());
   });
 

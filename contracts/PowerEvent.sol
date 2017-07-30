@@ -117,7 +117,7 @@ contract PowerEvent {
     // set max power
     var PowerContract = ERC20(powerAddr);
     uint256 authorizedPower = PowerContract.totalSupply();
-    NutzContract.setMaxPower(authorizedPower.div(2));
+    NutzContract.setMaxPower(authorizedPower);
     // pay out milestone
     uint256 collected = NutzContract.reserve().sub(initialReserve);
     for (uint256 i = 0; i < milestoneRecipients.length; i++) {

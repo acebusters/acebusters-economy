@@ -40,7 +40,7 @@ contract('PowerEvent', (accounts) => {
     await token.transfer(power.address, babz(1200000), "0x00", { from: FOUNDERS });
     const totalPow1 = await power.totalSupply.call();
     const founderPow1 = await power.balanceOf.call(FOUNDERS);
-    assert.equal(founderPow1.toNumber(), totalPow1.mul(0.5).toNumber());
+    assert.equal(founderPow1.toNumber(), totalPow1.toNumber());
 
 
     // prepare event #2
@@ -74,8 +74,8 @@ contract('PowerEvent', (accounts) => {
     const totalPow = await power.totalSupply.call();
     const founderPow = await power.balanceOf.call(FOUNDERS);
     const investorsPow = await power.balanceOf.call(INVESTORS);
-    assert.equal(founderPow.toNumber(), totalPow.mul(0.35).toNumber());
-    assert.equal(investorsPow.toNumber(), totalPow.mul(0.15).toNumber());
+    assert.equal(founderPow.toNumber(), totalPow.mul(0.7).toNumber());
+    assert.equal(investorsPow.toNumber(), totalPow.mul(0.3).toNumber());
   });
 
 });
