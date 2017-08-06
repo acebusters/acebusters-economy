@@ -19,7 +19,7 @@
     "babel-preset-stage-3": "^6.17.0",
     "babel-register": "^6.23.0",
     "ethereumjs-testrpc": "^4.0.1",
-    "truffle": "^3.4.5"
+    "truffle": "3.4.5"
   },
   "dependencies": {
     "bignumber.js": "^4.0.1"
