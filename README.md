@@ -4,13 +4,21 @@
 - extended with Power concept: [Acebusters Economy Paper](http://www.acebusters.com/files/The%20Acebusters%20Economy.pdf)
 - [javascript simulator](http://acebusters.com/economy.html)
 
-### run
+### run tests
 
 ```
 npm install
 testrpc
 truffle test
 ```
+
+### code coverage
+
+```
+npm run coverage
+```
+
+Executes instrumented tests on a separate testrpc. Coverage report is dumped to the terminal and into `coverage/index.html` (Istanbul HTML format)
 
 ## License
 Code released under the [MIT License](https://github.com/acebusters/safe-token-sale/blob/master/LICENSE).
