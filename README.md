@@ -4,11 +4,21 @@
 - extended with Power concept: [Acebusters Economy Paper](http://www.acebusters.com/files/The%20Acebusters%20Economy.pdf)
 - [javascript simulator](http://acebusters.com/economy.html)
 
-### run
+### install
+
+Needs `truffle@3.4.5` or below and `testrpc`
 
 ```
+npm install -g truffle@3.4.5
+npm install -g ethereumjs-testrpc
 npm install
-testrpc
+```
+
+### run
+
+Needs `testrpc` running in a separate terminal.
+
+```
 truffle test
 ```
 
