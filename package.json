@@ -5,16 +5,20 @@
   "author": "Johann Barbie",
   "license": "MIT",
   "main": "truffle.js",
+  "scripts": {
+    "coveralls": "scripts/coveralls.sh"
+  },
   "keywords": [
     "token",
     "ethereum"
   ],
   "devDependencies": {
+    "babel-polyfill": "^6.23.0",
     "babel-preset-es2015": "^6.18.0",
     "babel-preset-stage-2": "^6.18.0",
     "babel-preset-stage-3": "^6.17.0",
     "babel-register": "^6.23.0",
-    "babel-polyfill": "^6.23.0"
+    "coveralls": "^2.13.1"
   },
   "dependencies": {
     "bignumber.js": "^4.0.1"
