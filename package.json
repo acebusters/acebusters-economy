@@ -5,9 +5,6 @@
   "author": "Johann Barbie",
   "license": "MIT",
   "main": "truffle.js",
-  "scripts": {
-    "coveralls": "scripts/coveralls.sh"
-  },
   "keywords": [
     "token",
     "ethereum"
