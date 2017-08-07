@@ -4,12 +4,16 @@
 - extended with Power concept: [Acebusters Economy Paper](http://www.acebusters.com/files/The%20Acebusters%20Economy.pdf)
 - [javascript simulator](http://acebusters.com/economy.html)
 
-### run tests
+### installation
 
 ```
 npm install
-testrpc
-truffle test
+```
+
+### run tests
+
+```
+npm run tests
 ```
 
 ### code coverage

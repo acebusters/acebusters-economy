@@ -6,6 +6,7 @@
   "license": "MIT",
   "main": "truffle.js",
   "scripts": {
+    "test": "scripts/test.sh",
     "coverage": "./node_modules/.bin/solidity-coverage"
   },
   "keywords": [
@@ -18,6 +19,8 @@
     "babel-preset-stage-2": "^6.18.0",
     "babel-preset-stage-3": "^6.17.0",
     "babel-register": "^6.23.0",
+    "ethereumjs-testrpc": "^4.0.1",
+    "truffle": "3.4.5",
     "solidity-coverage": "^0.2.1"
   },
   "dependencies": {
