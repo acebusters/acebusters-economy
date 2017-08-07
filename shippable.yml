@@ -18,4 +18,4 @@ build:
     - npm run coverage
     - cp xunit_testresults.xml shippable/testresults/result.xml
     - ./node_modules/.bin/istanbul report cobertura --dir shippable/codecoverage/
-    - cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
+#    - cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
