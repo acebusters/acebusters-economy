@@ -6,9 +6,9 @@ node_js:
 env:
   - CI_BUILD=true
 
-#branches:
-#  only:
-#    - master
+branches:
+  only:
+    - master
 
 build:
   ci:
@@ -16,6 +16,6 @@ build:
     - mkdir -p shippable/codecoverage
     - npm install
     - npm run coverage
-  on_success:
-    - cp xunit_testresults.xml shippable/testresults/xunit_testresults.xml
+    - cp xunit_testresults.xml shippable/testresults/result.xml
     - ./node_modules/.bin/istanbul report cobertura --dir shippable/codecoverage/
+    - cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
