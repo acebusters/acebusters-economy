@@ -7,6 +7,6 @@ node_js:
 cache:
   yarn: true
 script:
-  - yarn run coverage
+  - npm run coverage
 after_script:
   - cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
