@@ -5,6 +5,10 @@
   "author": "Johann Barbie",
   "license": "MIT",
   "main": "truffle.js",
+  "scripts": {
+    "test": "scripts/test.sh",
+    "coverage": "./node_modules/.bin/solidity-coverage"
+  },
   "keywords": [
     "token",
     "ethereum"
@@ -15,7 +19,10 @@
     "babel-preset-stage-2": "^6.18.0",
     "babel-preset-stage-3": "^6.17.0",
     "babel-register": "^6.23.0",
-    "coveralls": "^2.13.1"
+    "coveralls": "^2.13.1",
+    "ethereumjs-testrpc": "^4.0.1",
+    "truffle": "3.4.5",
+    "solidity-coverage": "^0.2.1"
   },
   "dependencies": {
     "bignumber.js": "^4.0.1"
