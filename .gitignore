@@ -5,3 +5,11 @@ environments/
 *.sol.js
 environments/
 .idea
+
+# testrpc
+scTopics
+
+# test coverage
+coverage/
+coverageEnv/
+coverage.json
