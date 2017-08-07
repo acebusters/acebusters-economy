@@ -6,10 +6,11 @@ environments/
 environments/
 .idea
 
-# testrpc
-scTopics
+# test
+xunit_testresults.xml
 
 # test coverage
+scTopics
 coverage/
 coverageEnv/
 coverage.json

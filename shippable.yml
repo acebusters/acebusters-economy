@@ -1,12 +1,21 @@
-dist: trusty
-sudo: required
-group: beta
 language: node_js
+
 node_js:
   - "6"
-cache:
-  yarn: true
-script:
-  - npm run coverage
-after_script:
-  - cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
+
+env:
+  - CI_BUILD=true
+
+#branches:
+#  only:
+#    - master
+
+build:
+  ci:
+    - mkdir -p shippable/testresults
+    - mkdir -p shippable/codecoverage
+    - npm install
+    - npm run coverage
+  on_success:
+    - cp xunit_testresults.xml shippable/testresults/xunit_testresults.xml
+    - ./node_modules/.bin/istanbul report cobertura --dir shippable/codecoverage/

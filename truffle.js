@@ -1,6 +1,18 @@
 require('babel-register');
 require('babel-polyfill');
 
+var mochaConfig = {};
+
+if (process.env.CI_BUILD) {
+  // Shippable CI likes test results in xunit format
+  mochaConfig = {
+    reporter: 'xunit',
+    reporterOptions: {
+      output: 'xunit_testresults.xml'
+    }
+  };
+}
+
 module.exports = {
   networks: {
     development: {
@@ -15,5 +27,6 @@ module.exports = {
       gas: 0xfffffffffff,
       gasPrice: 0x01
     }
-  }
+  },
+  mocha: mochaConfig
 };
