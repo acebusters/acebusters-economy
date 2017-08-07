@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/acebusters/economy.svg?branch=master)](https://travis-ci.org/acebusters/economy)
+[![Coverage Status](https://coveralls.io/repos/github/acebusters/economy/badge.svg?branch=master)](https://coveralls.io/github/acebusters/economy?branch=master)
+
 ## Safe Token Sale
 
 - idea according to [Vlad Zamfir's Safe Token Sale](https://medium.com/@Vlad_Zamfir/a-safe-token-sale-mechanism-8d73c430ddd1).
