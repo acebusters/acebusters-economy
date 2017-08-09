@@ -1,5 +1,6 @@
 const Nutz = artifacts.require('./Nutz.sol');
 const NutzMock = artifacts.require('./helpers/NutzMock.sol');
+const Power = artifacts.require('./Power.sol');
 const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol');
 const assertJump = require('./helpers/assertJump');
 const BigNumber = require('bignumber.js');
@@ -28,6 +29,20 @@ contract('Nutz', (accounts) => {
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'ether wasn\'t sent to contract');
   });
 
+  it('should prevent purchase if value 0', async () => {
+    // create token contract
+    const ceiling = new BigNumber(30000);
+    const token = await NutzMock.new(0, 0, ceiling, INFINITY);
+    // purchase some tokens with ether
+    try {
+      const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: 0 });
+      await web3.eth.transactionMined(txHash);
+      assert.fail('should have thrown before');
+    } catch(error) {
+      assertJump(error);
+    }
+  });
+
   it('should allow to sell', async () => {
     // create contract and purchase tokens for 1 ether
     const ceiling = new BigNumber(1000);
@@ -54,6 +69,60 @@ contract('Nutz', (accounts) => {
     allocationWei = await token.allowance.call(token.address, accounts[0]);
     assert.equal(allocationWei.toNumber(), 0, 'allocation wasn\'t payed out.');
     // TODO: check my ether balance increased
+  });
+
+  it('should allow to sell with active power pool', async () => {
+    // create contract and purchase tokens for 1 ether
+    const ceiling = new BigNumber(1000);
+    const token = await NutzMock.new(0, 0, ceiling, 1000);
+    
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
+    await web3.eth.transactionMined(txHash);
+
+    // initiate power pool
+    await token.dilutePower(0);
+    const power = Power.at(await token.powerAddr.call());
+    const authorizedPower = await power.totalSupply.call();
+    await token.setMaxPower(authorizedPower);
+
+    // power up some tokens
+    let babzBalance = await token.balanceOf.call(accounts[0]);
+    await token.powerUp(babzBalance.div(2));
+
+    const powerPoolBefore = await token.powerPool.call();
+    // sell half of active supply
+    await token.sell(babzBalance.div(4));
+
+    // check size of power pool after sell
+    const powerPoolAfter = await token.powerPool.call();
+    assert.equal(powerPoolBefore.div(2).toNumber(), powerPoolAfter.toNumber(), 'power pool not adjusted on sell');
+  });
+
+  describe('#balanceOf()', () => {
+
+    it('should return 0 for power contract address', async () => {
+      // create contract and purchase tokens for 1 ether
+      const ceiling = new BigNumber(1000);
+      const token = await NutzMock.new(0, 0, ceiling, 1000);
+      
+      const txHash = web3.eth.sendTransaction({ from: accounts[0], to: token.address, value: ONE_ETH });
+      await web3.eth.transactionMined(txHash);
+
+      // initiate power pool
+      await token.dilutePower(0);
+      const power = Power.at(await token.powerAddr.call());
+      const authorizedPower = await power.totalSupply.call();
+      await token.setMaxPower(authorizedPower);
+
+      // power up some tokens
+      const babzBalance = await token.balanceOf.call(accounts[0]);
+      await token.powerUp(babzBalance.div(2));
+
+      // assert balanceOf() should return 0 for power contract address
+      const powerBalance = await token.balanceOf.call(power.address);
+      assert.equal(powerBalance.toNumber(), 0, 'do not expose balance of power pool through ERC20');
+    });
+
   });
 
   it('setting floor to infinity should disable sell', async () => {
