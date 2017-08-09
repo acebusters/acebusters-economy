@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/acebusters/economy.svg?branch=master)](https://travis-ci.org/acebusters/economy)
-[![Coverage Status](https://coveralls.io/repos/github/acebusters/economy/badge.svg?branch=master)](https://coveralls.io/github/acebusters/economy?branch=master)
+[![Run Status](https://api.shippable.com/projects/58edf58cbe95a307002d2864/badge?branch=master)](https://app.shippable.com/github/acebusters/economy)
+[![Coverage Badge](https://api.shippable.com/projects/58edf58cbe95a307002d2864/coverageBadge?branch=master)](https://app.shippable.com/github/acebusters/economy)
 
 ## Safe Token Sale
 
