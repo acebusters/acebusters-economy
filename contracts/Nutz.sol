@@ -140,7 +140,7 @@ contract Nutz is ERC20 {
   
   function _sell(address _from, uint256 _amountBabz) internal returns (bool) {
     uint256 effectiveFloor = floor();
-    assert(effectiveFloor != INFINITY);
+    require(effectiveFloor != INFINITY);
 
     uint256 amountWei = _amountBabz.mul(MEGA_WEI).div(effectiveFloor);
     // make sure power pool shrinks proportional to economy
@@ -159,9 +159,10 @@ contract Nutz is ERC20 {
 
   // withdraw accumulated balance, called by seller or beneficiary
   function _claimEther(address _sender, address _to) internal {
-    assert(salePrice < INFINITY);
+    require(salePrice < INFINITY);
     uint256 amountWei = allowed[address(this)][_sender];
-    assert(0 < amountWei && amountWei <= this.balance);
+    require(amountWei > 0);
+    assert(amountWei <= this.balance);
     allowed[address(this)][_sender] = 0;
     assert(_to.send(amountWei));
   }
@@ -173,8 +174,9 @@ contract Nutz is ERC20 {
       codeLength := extcodesize(_to)
     }
     if(codeLength>0) {
-      ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
-      receiver.tokenFallback(_from, _value, _data);
+      ERC223ReceivingContract untrustedReceiver = ERC223ReceivingContract(_to);
+      // untrusted contract call
+      untrustedReceiver.tokenFallback(_from, _value, _data);
     } else {
       require(onlyContractHolders == false);
     }
