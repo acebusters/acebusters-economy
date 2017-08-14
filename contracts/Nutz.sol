@@ -3,6 +3,7 @@ pragma solidity 0.4.11;
 import "./SafeMath.sol";
 import "./ERC20.sol";
 import "./Power.sol";
+import "./PullPayment.sol";
 import "./ERC223ReceivingContract.sol";
 
 /**
@@ -29,8 +30,6 @@ contract Nutz is ERC20 {
 
   // active supply
   uint256 internal actSupply;
-  // contract's ether balance, except all ether parked to be withdrawn
-  uint256 public reserve;
   // burn pool - inactive supply
   uint256 public burnPool;
   // balanceOf[powerAddr] size of power pool
@@ -47,6 +46,7 @@ contract Nutz is ERC20 {
   uint256 salePrice;
   address[] public admins;
   address public powerAddr;
+  address public pullAddr;
 
   // this flag allows or denies deposits of NTZ into non-contract accounts
   bool public onlyContractHolders = true;
@@ -81,10 +81,10 @@ contract Nutz is ERC20 {
   // returns either the salePrice, or if reserve does not suffice
   // for active supply, returns maxFloor
   function floor() constant returns (uint256) {
-    if (reserve == 0) {
+    if (this.balance == 0) {
       return INFINITY;
     }
-    uint256 maxFloor = actSupply.mul(1000000).div(reserve); // 1,000,000 WEI, used as price factor
+    uint256 maxFloor = actSupply.mul(1000000).div(this.balance); // 1,000,000 WEI, used as price factor
     // return max of maxFloor or salePrice
     return maxFloor >= salePrice ? maxFloor : salePrice;
   }
@@ -102,6 +102,7 @@ contract Nutz is ERC20 {
     salePrice = INFINITY;
     onlyContractHolders = true;
     powerAddr = new Power(address(this), _downTime);
+    pullAddr = new PullPayment();
   }
 
 
@@ -123,7 +124,6 @@ contract Nutz is ERC20 {
     // might happen with very high purchase price
     require(amountBabz > 0);
 
-    reserve = reserve.add(msg.value);
     // make sure power pool grows proportional to economy
     if (powerAddr != 0x0 && balances[powerAddr] > 0) {
       uint256 powerShare = balances[powerAddr].mul(amountBabz).div(actSupply.add(burnPool));
@@ -151,20 +151,10 @@ contract Nutz is ERC20 {
     }
     actSupply = actSupply.sub(_amountBabz);
     balances[_from] = balances[_from].sub(_amountBabz);
-    reserve = reserve.sub(amountWei);
-    allowed[address(this)][_from] = allowed[address(this)][_from].add(amountWei);
+    assert(amountWei <= this.balance);
+    PullPayment(pullAddr).asyncSend.value(amountWei)(_from);
     Sell(_from,  _amountBabz);
     return true;
-  }
-
-  // withdraw accumulated balance, called by seller or beneficiary
-  function _claimEther(address _sender, address _to) internal {
-    require(salePrice < INFINITY);
-    uint256 amountWei = allowed[address(this)][_sender];
-    require(amountWei > 0);
-    assert(amountWei <= this.balance);
-    allowed[address(this)][_sender] = 0;
-    assert(_to.send(amountWei));
   }
 
   function _checkDestination(address _from, address _to, uint256 _value, bytes _data) internal {
@@ -261,7 +251,7 @@ contract Nutz is ERC20 {
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     if (_newSalePrice < INFINITY) {
-      require(reserve >= actSupply.mul(1000000).div(_newSalePrice)); // 1,000,000 WEI, used as price factor
+      require(this.balance >= actSupply.mul(1000000).div(_newSalePrice)); // 1,000,000 WEI, used as price factor
     }
     salePrice = _newSalePrice;
   }
@@ -275,10 +265,8 @@ contract Nutz is ERC20 {
     // allocateEther fails if allocating those funds would mean that the
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
-    uint256 leftReserve = reserve.sub(_amountWei);
-    require(leftReserve >= actSupply.mul(1000000).div(salePrice)); // 1,000,000 WEI, used as price factor
-    reserve = leftReserve;
-    allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountWei);
+    require(this.balance.sub(_amountWei) >= actSupply.mul(1000000).div(salePrice)); // 1,000,000 WEI, used as price factor
+    PullPayment(pullAddr).asyncSend.value(_amountWei)(_beneficiary);
   }
 
   function dilutePower(uint256 _amountBabz) onlyAdmins {
@@ -340,11 +328,6 @@ contract Nutz is ERC20 {
   function transferFrom(address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
     require(_from != _to);
     require(_to != address(this));
-    // claim ether
-    if (_from == address(this) && _amountBabz == 0) {
-      _claimEther(msg.sender, _to);
-      return true;
-    }
     require(_amountBabz > 0);
     if (_from == powerAddr) {
       // 3rd party power up:

@@ -58,7 +58,7 @@ contract PowerEvent {
     var NutzContract = Nutz(ntzAddr);
     powerAddr = NutzContract.powerAddr();
     initialSupply = NutzContract.totalSupply();
-    initialReserve = NutzContract.reserve();
+    initialReserve = ntzAddr.balance;
     uint256 ceiling = NutzContract.ceiling();
     // move ceiling
     uint256 newCeiling = ceiling.mul(discountRate).div(RATE_FACTOR);
@@ -69,7 +69,7 @@ contract PowerEvent {
   
   function stopCollection() isState(EventState.Collecting) {
     var NutzContract = Nutz(ntzAddr);
-    uint256 collected = NutzContract.reserve().sub(initialReserve);
+    uint256 collected = ntzAddr.balance.sub(initialReserve);
     if (now > startTime.add(maxDuration)) {
       if (collected >= softCap) {
         // softCap reached, close
@@ -119,7 +119,7 @@ contract PowerEvent {
     uint256 authorizedPower = PowerContract.totalSupply();
     NutzContract.setMaxPower(authorizedPower);
     // pay out milestone
-    uint256 collected = NutzContract.reserve().sub(initialReserve);
+    uint256 collected = ntzAddr.balance.sub(initialReserve);
     for (uint256 i = 0; i < milestoneRecipients.length; i++) {
       uint256 payoutAmount = collected.mul(milestoneShares[i]).div(RATE_FACTOR);
       NutzContract.allocateEther(payoutAmount, milestoneRecipients[i]);

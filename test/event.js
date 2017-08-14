@@ -1,5 +1,6 @@
 const Nutz = artifacts.require('./Nutz.sol');
 const Power = artifacts.require('./Power.sol');
+const PullPayment = artifacts.require('./PullPayment.sol');
 const PowerEvent = artifacts.require('./PowerEvent.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
@@ -13,6 +14,7 @@ contract('PowerEvent', (accounts) => {
   it('should allow to execute event through policy', async () => {
     const token = await Nutz.new(0);
     const power = Power.at(await token.powerAddr.call());
+    const pullPayment = PullPayment.at(await token.pullAddr.call());
     await token.moveCeiling(CEILING_PRICE);
     await token.setOnlyContractHolders(false);
 
@@ -66,9 +68,8 @@ contract('PowerEvent', (accounts) => {
     await token.transfer(power.address, investorsBal, "0x00", { from: INVESTORS });
     // event #2 - milestone payment
     await token.moveFloor(CEILING_PRICE * 2);
-    let amountAllocated = await token.allowance.call(token.address, EXEC_BOARD);
+    let amountAllocated = await pullPayment.balanceOf.call(EXEC_BOARD);
     assert.equal(amountAllocated.toNumber(), WEI_AMOUNT * 6000, 'ether wasn\'t allocated to beneficiary');
-    await token.transferFrom(token.address, FOUNDERS, 0, { from: EXEC_BOARD });
 
     // check power allocation
     const totalPow = await power.totalSupply.call();

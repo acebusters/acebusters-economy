@@ -1,6 +1,7 @@
 const Nutz = artifacts.require('./Nutz.sol');
 const NutzMock = artifacts.require('./helpers/NutzMock.sol');
 const Power = artifacts.require('./Power.sol');
+const PullPayment = artifacts.require('./PullPayment.sol');
 const PowerEvent = artifacts.require('./PowerEvent.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
@@ -88,6 +89,7 @@ contract('Power', (accounts) => {
   it('should allow to execute event manually', async () => {
     const token = await NutzMock.new(DOWNTIME, 0, CEILING_PRICE * 20, INFINITY);
     const powerAddr = await token.powerAddr.call();
+    const pullPayment = PullPayment.at(await token.pullAddr.call());
     const power = Power.at(powerAddr);
     // Founder Buy in 
     const FOUNDERS = accounts[1];
@@ -130,16 +132,18 @@ contract('Power', (accounts) => {
     const floor = await token.floor.call();
     const ceiling = await token.ceiling.call();
     const totalReserve = web3.toWei(8, 'ether');
-    const weiReserve = await token.reserve.call();
+    const weiReserve = web3.eth.getBalance(token.address);
     assert.equal(weiReserve.toNumber(), totalReserve, 'reserve incorrect');
     // payout 10 percent
     const payoutAmount = totalReserve/2;
     await token.allocateEther(payoutAmount, FOUNDERS);
-    let amountAllocated = await token.allowance.call(token.address, FOUNDERS);
+    let amountAllocated = await pullPayment.balanceOf.call(FOUNDERS);
     assert.equal(payoutAmount, amountAllocated.toNumber(), 'ether wasn\'t allocated to beneficiary');
-    await token.transferFrom(token.address, FOUNDERS, 0, { from: FOUNDERS });
-    let amountAllocated2 = await token.allowance.call(token.address, FOUNDERS);
-    assert.equal(amountAllocated2, 0, 'ether wasn\'t received');
+
+    const before = web3.eth.getBalance(FOUNDERS);
+    await pullPayment.withdraw({ from: FOUNDERS, gasPrice: 0 });
+    const after = web3.eth.getBalance(FOUNDERS);
+    assert.equal(after - before, amountAllocated.toNumber(), 'allocation wasn\'t payed out.');
   });
 
   it('should allow to slash down request');
