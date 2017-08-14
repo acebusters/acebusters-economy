@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity 0.4.11;
 
 import './Nutz.sol';
 import "./SafeMath.sol";
