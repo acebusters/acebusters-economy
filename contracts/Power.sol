@@ -18,20 +18,20 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
   // time it should take to power down
   uint256 public downtime;
   // token contract address
-  address nutzAddr;
+  address internal nutzAddr;
   // sum of all outstanding power
   uint256 outstandingPower = 0;
   // authorized power
-  uint256 authorizedPower = 0;
+  uint256 internal authorizedPower = 0;
   // when powering down, at least totalSupply/minShare Power should be claimed
-  uint256 minShare = 10000;
+  uint256 internal minShare = 10000;
 
   // maxPower is a limit of total power that can be outstanding
   // maxPower has a valid value between outstandingPower and authorizedPow/2
-  uint256 maxPower = 0;
+  uint256 internal maxPower = 0;
 
   // all holder balances
-  mapping (address => uint256) balances;
+  mapping (address => uint256) internal balances;
 
   // data structure for withdrawals
   struct DownRequest {
@@ -179,7 +179,7 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
   // ############################################
 
   // this is called when NTZ are deposited into the power pool
-  function tokenFallback(address _from, uint256 _amountBabz, bytes _data) {
+  function tokenFallback(address _from, uint256 _amountBabz, bytes _data) public {
     require(msg.sender == nutzAddr);
     uint256 totalBabz;
     assembly {
@@ -197,7 +197,7 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
   }
 
   // registers a powerdown request
-  function transfer(address _to, uint256 _amountPower) returns (bool success) {
+  function transfer(address _to, uint256 _amountPower) public returns (bool success) {
     // make Power not transferable
     require(_to == nutzAddr);
     // prevent powering down tiny amounts
@@ -210,14 +210,14 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
     return true;
   }
 
-  function downTick(uint256 _pos) returns (bool success) {
+  function downTick(uint256 _pos) public returns (bool success) {
       return _downTick(_pos, now);
   }
 
   // !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!
   // REMOVE THIS BEFORE DEPLOYMENT!!!!
   // needed for accelerated time testing
-  function downTickTest(uint256 _pos, uint256 _now) returns (bool success) {
+  function downTickTest(uint256 _pos, uint256 _now) public returns (bool success) {
     return _downTick(_pos, _now);
   }
   // !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!

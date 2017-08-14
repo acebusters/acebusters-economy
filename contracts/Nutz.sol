@@ -24,21 +24,21 @@ contract Nutz is ERC20 {
   // 10^0 - Babz
   string public symbol = "NTZ";
   uint256 public decimals = 12;
-  uint256 INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-  uint256 MEGA_WEI = 1000000;   // 1 MEGA_WEI equals 1,000,000 WEI, used as price factor
+  uint256 internal INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+  
 
   // active supply
-  uint256 actSupply;
+  uint256 internal actSupply;
   // contract's ether balance, except all ether parked to be withdrawn
   uint256 public reserve;
   // burn pool - inactive supply
   uint256 public burnPool;
   // balanceOf[powerAddr] size of power pool
   // balance of active holders
-  mapping(address => uint) balances;
+  mapping(address => uint) internal balances;
   // "allowed[address(this)][x]" ether parked to be withdraw
   // allowances according to ERC20
-  mapping (address => mapping (address => uint)) allowed;
+  mapping (address => mapping (address => uint)) internal allowed;
   
   // the Token sale mechanism parameters:
   // ceiling is the number of NTZ received for purchase with 1 ETH
@@ -84,7 +84,7 @@ contract Nutz is ERC20 {
     if (reserve == 0) {
       return INFINITY;
     }
-    uint256 maxFloor = actSupply.mul(MEGA_WEI).div(reserve);
+    uint256 maxFloor = actSupply.mul(1000000).div(reserve); // 1,000,000 WEI, used as price factor
     // return max of maxFloor or salePrice
     return maxFloor >= salePrice ? maxFloor : salePrice;
   }
@@ -118,7 +118,7 @@ contract Nutz is ERC20 {
     // disable purchases if ceiling set to 0
     require(ceiling > 0);
 
-    uint256 amountBabz = msg.value.mul(ceiling).div(MEGA_WEI);
+    uint256 amountBabz = msg.value.mul(ceiling).div(1000000); // 1,000,000 WEI, used as price factor
     // avoid deposits that issue nothing
     // might happen with very high purchase price
     require(amountBabz > 0);
@@ -142,7 +142,7 @@ contract Nutz is ERC20 {
     uint256 effectiveFloor = floor();
     require(effectiveFloor != INFINITY);
 
-    uint256 amountWei = _amountBabz.mul(MEGA_WEI).div(effectiveFloor);
+    uint256 amountWei = _amountBabz.mul(1000000).div(effectiveFloor);  // 1,000,000 WEI, used as price factor
     // make sure power pool shrinks proportional to economy
     uint256 powerPool = balances[powerAddr];
     if (powerPool > 0) {
@@ -261,7 +261,7 @@ contract Nutz is ERC20 {
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     if (_newSalePrice < INFINITY) {
-      require(reserve >= actSupply.mul(MEGA_WEI).div(_newSalePrice));
+      require(reserve >= actSupply.mul(1000000).div(_newSalePrice)); // 1,000,000 WEI, used as price factor
     }
     salePrice = _newSalePrice;
   }
@@ -276,7 +276,7 @@ contract Nutz is ERC20 {
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
     uint256 leftReserve = reserve.sub(_amountWei);
-    require(leftReserve >= actSupply.mul(MEGA_WEI).div(salePrice));
+    require(leftReserve >= actSupply.mul(1000000).div(salePrice)); // 1,000,000 WEI, used as price factor
     reserve = leftReserve;
     allowed[address(this)][_beneficiary] = allowed[address(this)][_beneficiary].add(_amountWei);
   }
@@ -320,7 +320,7 @@ contract Nutz is ERC20 {
     _purchase();
   }
   
-  function approve(address _spender, uint256 _amountBabz) {
+  function approve(address _spender, uint256 _amountBabz) public {
     require(_spender != address(this));
     require(msg.sender != _spender);
     require(_amountBabz > 0);
@@ -328,7 +328,7 @@ contract Nutz is ERC20 {
     Approval(msg.sender, _spender, _amountBabz);
   }
 
-  function transfer(address _to, uint256 _amountBabz, bytes _data) returns (bool) {
+  function transfer(address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
     require(_amountBabz != 0);
     // sell tokens
     if (_to == address(this)) {
@@ -337,7 +337,7 @@ contract Nutz is ERC20 {
     return _transfer(msg.sender, _to, _amountBabz, _data);
   }
 
-  function transferFrom(address _from, address _to, uint256 _amountBabz, bytes _data) returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
     require(_from != _to);
     require(_to != address(this));
     // claim ether
@@ -368,29 +368,29 @@ contract Nutz is ERC20 {
   // ######## PUB. FUNCTION ALIASES #############
   // ############################################
 
-  function purchase() payable {
+  function purchase() public payable {
     _purchase();
   }
 
-  function transfer(address _to, uint256 _amountBabz) returns (bool) {
+  function transfer(address _to, uint256 _amountBabz) public returns (bool) {
     bytes memory empty;
     return transfer(_to, _amountBabz, empty);
   }
 
-  function transData(address _to, uint256 _amountBabz, bytes _data) returns (bool) {
+  function transData(address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
     return transfer(_to, _amountBabz, _data);
   }
 
-  function transferFrom(address _from, address _to, uint256 _amountBabz) returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _amountBabz) public returns (bool) {
     bytes memory empty;
     return transferFrom(_from, _to, _amountBabz, empty);
   }
 
-  function sell(uint256 _value) {
+  function sell(uint256 _value) public {
     _sell(msg.sender, _value);
   }
 
-  function powerUp(uint256 _value) {
+  function powerUp(uint256 _value) public {
     bytes memory empty;
     _transfer(msg.sender, powerAddr, _value, empty);
   }
