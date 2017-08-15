@@ -38,6 +38,32 @@ contract Nutz is ERC20 {
   // "allowed[address(this)][x]" ether parked to be withdraw
   // allowances according to ERC20
   mapping (address => mapping (address => uint)) internal allowed;
+
+  // all power balances
+  mapping (address => uint256) public powBalance;
+
+  function setPowBalance(address _owner, uint256 _value) {
+    require(msg.sender == powerAddr);
+    powBalance[_owner] = _value;
+  }
+
+  // sum of all outstanding power
+  uint256 public outstandingPower = 0;
+  // authorized power
+  uint256 public authorizedPower = 0;
+  // maxPower is a limit of total power that can be outstanding
+  // maxPower has a valid value between outstandingPower and authorizedPow/2
+  uint256 public maxPower = 0;
+
+  function setOutstandingPower(uint256 _value) {
+    require(msg.sender == powerAddr);
+    outstandingPower = _value;
+  }
+
+  function setAuthorizedPower(uint256 _value) {
+    require(msg.sender == powerAddr);
+    authorizedPower = _value;
+  }
   
   // the Token sale mechanism parameters:
   // ceiling is the number of NTZ received for purchase with 1 ETH
@@ -101,7 +127,7 @@ contract Nutz is ERC20 {
     // initial sale price
     salePrice = INFINITY;
     onlyContractHolders = true;
-    powerAddr = new Power(address(this), _downTime);
+    powerAddr = new Power(_downTime);
     pullAddr = new PullPayment();
   }
 
@@ -172,16 +198,31 @@ contract Nutz is ERC20 {
     }
   }
 
+
+  // this is called when NTZ are deposited into the power pool
+  function _powerUp(address _from, uint256 _amountBabz) internal {
+    require(authorizedPower != 0);
+    require(_amountBabz != 0);
+    require(totalSupply() != 0);
+    uint256 amountPow = _amountBabz.mul(authorizedPower).div(totalSupply());
+    // check pow limits
+    require(outstandingPower.add(amountPow) <= maxPower);
+    outstandingPower = outstandingPower.add(amountPow);
+    
+    uint256 powBal = powBalance[_from].add(amountPow);
+    require(powBal >= authorizedPower.div(10000)); // minShare = 10000
+    powBalance[_from] = powBal;
+  }
+
   function _transfer(address _from, address _to, uint256 _amountBabz, bytes _data) internal returns (bool) {
-    bytes memory data;
     // power up
     if (_to == powerAddr) {
-      data = new bytes(32);
-      uint ts = totalSupply();
-      assembly { mstore(add(data, 32), ts) }
+      _powerUp(_from, _amountBabz);
       actSupply = actSupply.sub(_amountBabz);
-    } else {
-      data = _data;
+      balances[_from] = balances[_from].sub(_amountBabz);
+      balances[_to] = balances[_to].add(_amountBabz);
+      Transfer(_from, _to, _amountBabz);
+      return true;
     }
     // power down
     if (_from == powerAddr) {
@@ -191,7 +232,7 @@ contract Nutz is ERC20 {
     balances[_from] = balances[_from].sub(_amountBabz);
     balances[_to] = balances[_to].add(_amountBabz);
 
-    _checkDestination(_from, _to, _amountBabz, data);
+    _checkDestination(_from, _to, _amountBabz, _data);
 
     Transfer(_from, _to, _amountBabz);
     return true;
@@ -269,16 +310,29 @@ contract Nutz is ERC20 {
     PullPayment(pullAddr).asyncSend.value(_amountWei)(_beneficiary);
   }
 
+  // this is called when NTZ are deposited into the burn pool
   function dilutePower(uint256 _amountBabz) onlyAdmins {
-    assert(Power(powerAddr).dilutePower(totalSupply(), _amountBabz));
+    if (authorizedPower == 0) {
+      // during the first capital increase, set some big number as authorized shares
+      authorizedPower = totalSupply().add(_amountBabz);
+    } else {
+      // in later increases, expand authorized shares at same rate like economy
+      authorizedPower = authorizedPower.mul(totalSupply().add(_amountBabz)).div(totalSupply());
+    }
     burnPool = burnPool.add(_amountBabz);
   }
 
   function slashPower(address _holder, uint256 _value, bytes32 _data) onlyAdmins {
     // get the previously outstanding power of which _value was slashed
-    uint256 outstandingPower = Power(powerAddr).slashPower(_holder, _value, _data);
+
+    powBalance[_holder] = powBalance[_holder].sub(_value);
+    uint256 previouslyOutstanding = outstandingPower;
+    outstandingPower = outstandingPower.sub(_value);
+
+    Power(powerAddr).slashPower(_holder, _value, _data);
+
     uint256 powerPool = balances[powerAddr];
-    uint256 slashingBabz = _value.mul(powerPool).div(outstandingPower);
+    uint256 slashingBabz = _value.mul(powerPool).div(previouslyOutstanding);
     balances[powerAddr] = powerPool.sub(slashingBabz);
   }
 
@@ -291,11 +345,9 @@ contract Nutz is ERC20 {
   }
 
   function setMaxPower(uint256 _maxPower) onlyAdmins {
-    Power(powerAddr).setMaxPower(_maxPower);
+    require(outstandingPower <= _maxPower && _maxPower < authorizedPower);
+    maxPower = _maxPower;
   }
-
-
-
 
 
 

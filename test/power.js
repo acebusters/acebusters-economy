@@ -17,8 +17,7 @@ contract('Power', (accounts) => {
 
   it('should init contract', async () => {
     const token = await Nutz.new(DOWNTIME);
-    const powerAddr = await token.powerAddr.call();
-    const power = Power.at(powerAddr);
+    const power = Power.at(await token.powerAddr.call());
     await token.dilutePower(10000);
     const authorizedShares = await power.totalSupply.call();
     assert.equal(authorizedShares.toNumber(), 5000, 'shares not authorized');
@@ -29,8 +28,7 @@ contract('Power', (accounts) => {
     const BOB = accounts[1];
 
     const token = await NutzMock.new(DOWNTIME, 0, CEILING_PRICE, INFINITY);
-    const powerAddr = await token.powerAddr.call();
-    const power = Power.at(powerAddr);
+    const power = Power.at(await token.powerAddr.call());
     
     // get some NTZ for 1 ETH
     const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: ALICE, to: token.address, value: WEI_AMOUNT });

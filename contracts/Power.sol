@@ -3,9 +3,19 @@ pragma solidity 0.4.11;
 import "./SafeMath.sol";
 import "./ERC20.sol";
 import "./ERC20Basic.sol";
-import "./ERC223ReceivingContract.sol";
+import "./Ownable.sol";
 
-contract Power is ERC20Basic, ERC223ReceivingContract {
+contract Controller {
+  function powBalance(address owner) constant returns (uint256);
+  function outstandingPower() constant returns (uint256);
+  function authorizedPower() constant returns (uint256);
+  function maxPower() constant returns (uint256);
+  function setPowBalance(address owner, uint256 amount);
+  function setOutstandingPower(uint256 amount);
+  function setAuthorizedPower(uint256 amount);
+}
+
+contract Power is ERC20Basic, Ownable {
   using SafeMath for uint;
 
   event Slashing(address indexed holder, uint value, bytes32 data);
@@ -17,21 +27,9 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
 
   // time it should take to power down
   uint256 public downtime;
-  // token contract address
-  address internal nutzAddr;
-  // sum of all outstanding power
-  uint256 outstandingPower = 0;
-  // authorized power
-  uint256 internal authorizedPower = 0;
+
   // when powering down, at least totalSupply/minShare Power should be claimed
   uint256 internal minShare = 10000;
-
-  // maxPower is a limit of total power that can be outstanding
-  // maxPower has a valid value between outstandingPower and authorizedPow/2
-  uint256 internal maxPower = 0;
-
-  // all holder balances
-  mapping (address => uint256) internal balances;
 
   // data structure for withdrawals
   struct DownRequest {
@@ -42,23 +40,26 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
   }
   DownRequest[] public downs;
 
-  function Power(address _nutzAddr, uint256 _downtime) {
-    nutzAddr = _nutzAddr;
+  function Power(uint256 _downtime) Ownable() {
     downtime = _downtime;
   }
 
   /// @param _holder The address from which the balance will be retrieved
   /// @return The balance
   function balanceOf(address _holder) constant returns (uint256 balance) {
-    return balances[_holder];
+    var contr = Controller(owner);
+    return contr.powBalance(_holder);
   }
 
   function activeSupply() constant returns (uint256) {
-    return outstandingPower;
+    var contr = Controller(owner);
+    return contr.outstandingPower();
   }
 
   function totalSupply() constant returns (uint256) {
-    uint256 issuedPower = authorizedPower.div(2);
+    var contr = Controller(owner);
+    uint256 issuedPower = contr.authorizedPower().div(2);
+    uint maxPower = contr.maxPower();
     // return max of maxPower or issuedPower
     return maxPower >= issuedPower ? maxPower : issuedPower;
   }
@@ -103,11 +104,13 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
     require(req.left <= minStep || minStep <= amountPow);
 
     // calculate token amount representing share of power
-    var nutzContract = ERC20(nutzAddr);
+    var nutzContract = ERC20(owner);
     uint256 totalBabz = nutzContract.totalSupply();
-    uint256 amountBabz = amountPow.mul(totalBabz).div(authorizedPower);
+    var contr = Controller(owner);
+    uint256 amountBabz = amountPow.mul(totalBabz).div(contr.authorizedPower());
     // transfer power and tokens
-    outstandingPower = outstandingPower.sub(amountPow);
+    uint256 outstandingPower = contr.outstandingPower();
+    contr.setOutstandingPower(outstandingPower.sub(amountPow));
     req.left = req.left.sub(amountPow);
     bytes memory empty;
     assert(nutzContract.transfer(req.owner, amountBabz, empty));
@@ -130,42 +133,17 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
   // ########### ADMIN FUNCTIONS ################
   // ############################################
 
-  modifier onlyNutzContract() {
-    require(msg.sender == nutzAddr);
-    _;
-  }
-
-  function setMaxPower(uint256 _maxPower) onlyNutzContract {
-    require(outstandingPower <= _maxPower && _maxPower < authorizedPower);
-    maxPower = _maxPower;
-  }
-
-  // this is called when NTZ are deposited into the burn pool
-  function dilutePower(uint256 _totalBabzBefore, uint256 _amountBabz) onlyNutzContract returns (bool) {
-    if (authorizedPower == 0) {
-      // during the first capital increase, set some big number as authorized shares
-      authorizedPower = _totalBabzBefore.add(_amountBabz);
-    } else {
-      // in later increases, expand authorized shares at same rate like economy
-      authorizedPower = authorizedPower.mul(_totalBabzBefore.add(_amountBabz)).div(_totalBabzBefore);
-    }
-    return true;
-  }
-
-  function slashPower(address _holder, uint256 _value, bytes32 _data) onlyNutzContract returns (uint256) {
-    balances[_holder] = balances[_holder].sub(_value);
-    uint256 previouslyOutstanding = outstandingPower;
-    outstandingPower = previouslyOutstanding.sub(_value);
+  function slashPower(address _holder, uint256 _value, bytes32 _data) onlyOwner {
     Slashing(_holder, _value, _data);
-    return previouslyOutstanding;
   }
 
-  function slashDownRequest(uint256 _pos, address _holder, uint256 _value, bytes32 _data) onlyNutzContract returns (uint256) {
+  function slashDownRequest(uint256 _pos, address _holder, uint256 _value, bytes32 _data) onlyOwner returns (uint256) {
     DownRequest storage req = downs[_pos];
     require(req.owner == _holder);
     req.left = req.left.sub(_value);
-    uint256 previouslyOutstanding = outstandingPower;
-    outstandingPower = previouslyOutstanding.sub(_value);
+    var contr = Controller(owner);
+    uint256 previouslyOutstanding = contr.outstandingPower();
+    contr.setOutstandingPower(previouslyOutstanding.sub(_value));
     Slashing(_holder, _value, _data);
     return previouslyOutstanding;
   }
@@ -178,35 +156,19 @@ contract Power is ERC20Basic, ERC223ReceivingContract {
   // ########### PUBLIC FUNCTIONS ###############
   // ############################################
 
-  // this is called when NTZ are deposited into the power pool
-  function tokenFallback(address _from, uint256 _amountBabz, bytes _data) public {
-    require(msg.sender == nutzAddr);
-    uint256 totalBabz;
-    assembly {
-      totalBabz := mload(add(_data, 32))
-    }
-    require(authorizedPower != 0);
-    require(_amountBabz != 0);
-    require(totalBabz != 0);
-    uint256 amountPow = _amountBabz.mul(authorizedPower).div(totalBabz);
-    // check pow limits
-    require(outstandingPower.add(amountPow) <= maxPower);
-    outstandingPower = outstandingPower.add(amountPow);
-    balances[_from] = balances[_from].add(amountPow);
-    require(balances[_from] >= authorizedPower.div(minShare));
-  }
-
   // registers a powerdown request
   function transfer(address _to, uint256 _amountPower) public returns (bool success) {
     // make Power not transferable
-    require(_to == nutzAddr);
+    require(_to == owner);
     // prevent powering down tiny amounts
-    require(_amountPower >= authorizedPower.div(minShare));
+    var contr = Controller(owner);
+    require(_amountPower >= contr.authorizedPower().div(minShare));
 
-    balances[msg.sender] = balances[msg.sender].sub(_amountPower);
+    uint256 powBal = contr.powBalance(msg.sender);
+    contr.setPowBalance(msg.sender, powBal.sub(_amountPower));
     uint256 pos = downs.length++;
     downs[pos] = DownRequest(msg.sender, _amountPower, _amountPower, now);
-    Transfer(msg.sender, nutzAddr, _amountPower);
+    Transfer(msg.sender, owner, _amountPower);
     return true;
   }
 
