@@ -70,7 +70,7 @@ contract Controller {
   // ############################################
 
   // this flag allows or denies deposits of NTZ into non-contract accounts
-  bool public onlyContractHolders = true;
+  bool public onlyContractHolders;
   // list of admins, council at first spot
   address[] public admins;
   // satelite contract addresses
@@ -146,13 +146,14 @@ contract Controller {
 
   // this is called when NTZ are deposited into the burn pool
   function dilutePower(uint256 _amountBabz) public onlyAdmins {
+    
     if (authorizedPower == 0) {
       // during the first capital increase, set some big number as authorized shares
-      uint256 totalSupply = activeSupply.add(balances[powerAddr]).add(burnPool);
-      authorizedPower = totalSupply.add(_amountBabz);
+      authorizedPower = totalSupply().add(_amountBabz);
     } else {
+      uint256 totalBabz = totalSupply();
       // in later increases, expand authorized shares at same rate like economy
-      authorizedPower = authorizedPower.mul(totalSupply.add(_amountBabz)).div(totalSupply);
+      authorizedPower = authorizedPower.mul(totalBabz.add(_amountBabz)).div(totalBabz);
     }
     burnPool = burnPool.add(_amountBabz);
   }
@@ -284,8 +285,7 @@ contract Controller {
     require(req.left <= minStep || minStep <= amountPow);
 
     // calculate token amount representing share of power
-    uint256 totalSupply = activeSupply.add(balances[powerAddr]).add(burnPool);
-    uint256 amountBabz = amountPow.mul(totalSupply).div(authorizedPower);
+    uint256 amountBabz = amountPow.mul(totalSupply()).div(authorizedPower);
     // transfer power and tokens
     outstandingPower = outstandingPower.sub(amountPow);
     req.left = req.left.sub(amountPow);
@@ -317,6 +317,10 @@ contract Controller {
   // balance of active holders
   mapping(address => uint) internal balances;
 
+  function getBabzBal(address _owner) constant public returns (uint256) {
+    return balances[_owner];
+  }
+
   // the Token sale mechanism parameters:
   // ceiling is the number of NTZ received for purchase with 1 ETH
   uint256 public ceiling;
@@ -340,6 +344,10 @@ contract Controller {
     return balances[powerAddr];
   }
 
+  function totalSupply() constant returns (uint256) {
+    return activeSupply.add(balances[powerAddr]).add(burnPool);
+  }
+
 
 
   modifier onlyNutz() {
@@ -355,7 +363,7 @@ contract Controller {
     allowed[_owner][_spender] = _amountBabz;
   }
 
-  function purchase() public onlyNutz payable returns (uint256) {
+  function purchase(address _sender) public onlyNutz payable returns (uint256) {
     // disable purchases if ceiling set to 0
     require(ceiling > 0);
 
@@ -370,10 +378,10 @@ contract Controller {
       balances[powerAddr] = balances[powerAddr].add(powerShare);
     }
     activeSupply = activeSupply.add(amountBabz);
-    balances[msg.sender] = balances[msg.sender].add(amountBabz);
+    balances[_sender] = balances[_sender].add(amountBabz);
 
     bytes memory empty;
-    //_checkDestination(address(this), msg.sender, amountBabz, empty);
+    _checkDestination(address(this), _sender, amountBabz, empty);
     return amountBabz;
   }
 
@@ -386,13 +394,18 @@ contract Controller {
     require(_from != _to);
     require(_to != address(this));
     require(_amountBabz > 0);
+    if (_to == powerAddr) {
+      powerUp(_from, _amountBabz);
+      return true;
+    }
     if (_from == powerAddr) {
       // 3rd party power up:
       // - first transfer NTZ to account of receiver
       // - then power up that amount of NTZ in the account of receiver
       balances[_sender] = balances[_sender].sub(_amountBabz);
       balances[_to] = balances[_to].add(_amountBabz);
-      return _transfer(_to, _from, _amountBabz, _data);
+      powerUp(_to, _amountBabz);
+      return true;
     } else {
       // usual transfer
       allowed[_from][_sender] = allowed[_from][_sender].sub(_amountBabz);
@@ -419,12 +432,12 @@ contract Controller {
   }
 
   // this is called when NTZ are deposited into the power pool
-  function powerUp(address _from, uint256 _amountBabz)  public onlyNutz {
+  function powerUp(address _from, uint256 _amountBabz) public onlyNutz {
     require(authorizedPower != 0);
     require(_amountBabz != 0);
-    uint256 totalSupply = activeSupply.add(balances[powerAddr]).add(burnPool);
-    require(totalSupply != 0);
-    uint256 amountPow = _amountBabz.mul(authorizedPower).div(totalSupply);
+    uint256 totalBabz = totalSupply();
+    require(totalBabz != 0);
+    uint256 amountPow = _amountBabz.mul(authorizedPower).div(totalBabz);
     // check pow limits
     require(outstandingPower.add(amountPow) <= maxPower);
     outstandingPower = outstandingPower.add(amountPow);

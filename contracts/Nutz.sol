@@ -31,9 +31,7 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function totalSupply() constant returns (uint256) {
-    var contr = ControllerInterface(owner);
-    // active supply + power pool + burn pool
-    return contr.activeSupply().add(contr.powerPool()).add(contr.burnPool());
+    return ControllerInterface(owner).totalSupply();
   }
 
   function activeSupply() constant returns (uint256) {
@@ -118,7 +116,7 @@ contract Nutz is Ownable, ERC20 {
 
   function purchase() public payable {
     require(msg.value > 0);
-    uint256 amountBabz = ControllerInterface(owner).purchase.value(msg.value)();
+    uint256 amountBabz = ControllerInterface(owner).purchase.value(msg.value)(msg.sender);
     Purchase(msg.sender, amountBabz);
   }
 

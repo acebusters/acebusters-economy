@@ -48,7 +48,6 @@ contract('Power', (accounts) => {
     await nutz.purchase({from: ALICE, value: WEI_AMOUNT });
     await controller.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
-    console.log('here0');
     await controller.setMaxPower(authorizedPower);
     const babzBalAlice = await nutz.balanceOf.call(ALICE);
     const expectedBal = (WEI_AMOUNT * CEILING_PRICE) / PRICE_FACTOR.toNumber();
@@ -59,15 +58,13 @@ contract('Power', (accounts) => {
     const ntz6k = NTZ_DECIMALS.mul(6000);
     assert.equal(ntz6k.toNumber(), babzTotal1.div(5).toNumber());
     // powerup these tokens and check shares
-    await nutz.transfer(power.address, ntz6k, "0x00");
-    console.log('here1');
+    await nutz.powerUp(ntz6k);
     const powTotal = await power.totalSupply.call();
     const powBalAlice = await power.balanceOf.call(ALICE);
     assert.equal(powBalAlice.toNumber(), powTotal.div(2.5).toNumber(), 'first power up failed');
 
     // get some NTZ for 1 ETH with other account
     await nutz.purchase({from: BOB, value: WEI_AMOUNT });
-    console.log('here2');
     const babzTotal2 = await nutz.totalSupply.call();
     
     // ntz13k is 1/5 of total Nutz supply
@@ -75,7 +72,7 @@ contract('Power', (accounts) => {
     assert.equal(ntz13k.toNumber(), babzTotal2.div(5).toNumber());
     // powerup these tokens and check shares
     await nutz.approve(accounts[2], ntz13k, {from: BOB});
-    await nutz.transferFrom(BOB, power.address, ntz13k, {from: accounts[2]});
+    await nutz.transferFrom(BOB, power.address, ntz13k, '0x00', {from: accounts[2]});
     const powBalBob = await power.balanceOf.call(BOB);
     assert.equal(powBalBob.toNumber(), powTotal.div(2.5).toNumber(), 'second power up failed');
     
@@ -84,17 +81,17 @@ contract('Power', (accounts) => {
     const pow20pc = powBalAlice.div(2);
     assert.equal(pow20pc.toNumber(), powTotal.div(5).toNumber());
     // power down and check
-    const babzBalAliceBefore = await controller.balanceOf.call(ALICE);
-    const babzActiveBefore = await controller.activeSupply.call();
+    const babzBalAliceBefore = await nutz.balanceOf.call(ALICE);
+    const babzActiveBefore = await nutz.activeSupply.call();
     await power.transfer(controller.address, pow20pc, "0x00");
     await power.downTickTest(0, (Date.now() / 1000 | 0) + DOWNTIME);
     const powBalAliceAfter = await power.balanceOf.call(ALICE);
     assert.equal(powBalAliceAfter.toNumber(), pow20pc.toNumber(), 'power down failed in Power contract');
     // check balances in token contract
-    const babzBalAliceAfter = await controller.balanceOf.call(ALICE);
+    const babzBalAliceAfter = await nutz.balanceOf.call(ALICE);
     const expectedBalAfter = babzBalAliceBefore.add(babzTotal2.div(10));
     assert.equal(babzBalAliceAfter.toNumber(), expectedBalAfter.toNumber(), 'power down failed in Nutz contract');
-    const activeSupply = await controller.activeSupply.call();
+    const activeSupply = await nutz.activeSupply.call();
     const expectedActiveAfter = babzActiveBefore.add(babzTotal2.div(10));
     assert.equal(activeSupply.toNumber(), expectedActiveAfter.toNumber(), 'active supply wrong after power down.');
   });
@@ -108,34 +105,32 @@ contract('Power', (accounts) => {
     const FOUNDERS = accounts[1];
     const INVESTORS = accounts[2];
     
-    const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: FOUNDERS, to: controller.address, value: WEI_AMOUNT });
-    await web3.eth.transactionMined(txHash1);
+    await nutz.purchase({from: FOUNDERS, value: WEI_AMOUNT });
     const expectedBal = (WEI_AMOUNT * CEILING_PRICE * 20) / PRICE_FACTOR.toNumber();
-    assert.equal(await controller.balanceOf.call(FOUNDERS), expectedBal);
+    assert.equal(await nutz.balanceOf.call(FOUNDERS), expectedBal);
     // Founder Burn
-    const totalBabz = await controller.totalSupply.call();
+    const totalBabz = await nutz.totalSupply.call();
     await controller.dilutePower(totalBabz);
     const totalPow = await power.totalSupply.call();
     await controller.setMaxPower(totalPow);
     // Founder power up, 1 ETH to 50 percent
-    await controller.transfer(powerAddr, expectedBal, "0x00", { from: FOUNDERS });
+    await nutz.powerUp(expectedBal, { from: FOUNDERS });
     const founderPow = await power.balanceOf.call(FOUNDERS);
     assert.equal(founderPow.toNumber(), totalPow.toNumber());
     // Investor buy in, 10 ETH
     // increase token price for investors
     await controller.moveCeiling(CEILING_PRICE);
     await controller.moveFloor(CEILING_PRICE * 2);
-    const txHash2 = web3.eth.sendTransaction({ gas: 300000, from: INVESTORS, to: controller.address, value: WEI_AMOUNT * 7 });
-    await web3.eth.transactionMined(txHash1);
+    await nutz.purchase({from: INVESTORS, value: WEI_AMOUNT * 7 });
     // Invetors Burn
-    const totalBabz2 = await controller.totalSupply.call();
-    const investorsBal = await controller.balanceOf.call(INVESTORS);
+    const totalBabz2 = await nutz.totalSupply.call();
+    const investorsBal = await nutz.balanceOf.call(INVESTORS);
     await controller.dilutePower(totalBabz2.div(4));
-    const totalBabz3 = await controller.totalSupply.call();
+    const totalBabz3 = await nutz.totalSupply.call();
     const totalPow3 = await power.totalSupply.call();
     // Investor Power Up, ETH to 20 percent
     await controller.setMaxPower(totalPow3);
-    await controller.transfer(powerAddr, totalBabz3.div(10), "0x00", { from: INVESTORS });
+    await nutz.powerUp(totalBabz3.div(10), { from: INVESTORS });
     const investorPow = await power.balanceOf.call(INVESTORS);
     // investor power should be 20%
     assert.equal(totalPow3.mul(0.2).toNumber(), investorPow.toNumber());
@@ -166,14 +161,13 @@ contract('Power', (accounts) => {
     const power = Power.at(await controller.powerAddr.call());
     
     // get some NTZ for 1 ETH
-    const txHash1 = web3.eth.sendTransaction({ gas: 200000, from: accounts[1], to: controller.address, value: WEI_AMOUNT });
-    await web3.eth.transactionMined(txHash1);
+    await nutz.purchase({from: accounts[1], value: WEI_AMOUNT });
     await controller.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
 
     // powerup tokens ( try 3rd party powerUp )
-    await controller.transferFrom(power.address, accounts[0], babz(15000), '0x00', { from: accounts[1] });
+    await nutz.transferFrom(power.address, accounts[0], babz(15000), '0x00', { from: accounts[1] });
     const outstandingBefore = await power.activeSupply.call();
     const bal = await power.balanceOf.call(accounts[0]);
     assert.equal(bal.toNumber(), babz(15000), '3rd party powerup failed');
