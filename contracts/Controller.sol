@@ -135,6 +135,13 @@ contract Controller {
     onlyContractHolders = _onlyContractHolders;
   }
 
+  function setContracts(address _storageAddr, address _nutzAddr, address _powerAddr, address _pullAddr) public onlyAdmins {
+    storageAddr = _storageAddr;
+    nutzAddr = _nutzAddr;
+    powerAddr = _powerAddr;
+    pullAddr = _pullAddr;
+  }
+
   function allocateEther(uint256 _amountWei, address _beneficiary) public onlyAdmins {
     require(_amountWei > 0);
     // allocateEther fails if allocating those funds would mean that the
@@ -318,7 +325,13 @@ contract Controller {
   mapping(address => uint) internal balances;
 
   function getBabzBal(address _owner) constant public returns (uint256) {
-    return balances[_owner];
+    if (_owner == powerAddr) {
+      // do not return balance of power pool / use powerPool() istead
+      return 0;
+    } else {
+      // only return balance of active holders
+      return balances[_owner];
+    }
   }
 
   // the Token sale mechanism parameters:
