@@ -1,6 +1,6 @@
 pragma solidity 0.4.11;
 
-import './Nutz.sol';
+import './Controller.sol';
 import "./SafeMath.sol";
 
 contract PowerEvent {
@@ -27,13 +27,13 @@ contract PowerEvent {
   uint256[] public milestoneShares;
   
   // Params
-  address public ntzAddr;
+  address public controllerAddr;
   address public powerAddr;
   uint256 public initialReserve;
   uint256 public initialSupply;
   
-  function PowerEvent(address _ntzAddr, uint256 _startTime, uint256 _minDuration, uint256 _maxDuration, uint256 _softCap, uint256 _hardCap, uint256 _discount, address[] _milestoneRecipients, uint256[] _milestoneShares) {
-    ntzAddr = _ntzAddr;
+  function PowerEvent(address _controllerAddr, uint256 _startTime, uint256 _minDuration, uint256 _maxDuration, uint256 _softCap, uint256 _hardCap, uint256 _discount, address[] _milestoneRecipients, uint256[] _milestoneShares) {
+    controllerAddr = _controllerAddr;
     startTime = _startTime;
     minDuration = _minDuration;
     maxDuration = _maxDuration;
@@ -55,21 +55,21 @@ contract PowerEvent {
     require(now > startTime);
     // assert(now < startTime.add(minDuration));
     // read initial values
-    var NutzContract = Nutz(ntzAddr);
-    powerAddr = NutzContract.powerAddr();
-    initialSupply = NutzContract.totalSupply();
-    initialReserve = ntzAddr.balance;
-    uint256 ceiling = NutzContract.ceiling();
+    var contr = Controller(controllerAddr);
+    powerAddr = contr.powerAddr();
+    initialSupply = contr.activeSupply().add(contr.powerPool()).add(contr.burnPool());
+    initialReserve = controllerAddr.balance;
+    uint256 ceiling = contr.ceiling();
     // move ceiling
     uint256 newCeiling = ceiling.mul(discountRate).div(RATE_FACTOR);
-    NutzContract.moveCeiling(newCeiling);
+    contr.moveCeiling(newCeiling);
     // set state
     state = EventState.Collecting;
   }
   
   function stopCollection() isState(EventState.Collecting) {
-    var NutzContract = Nutz(ntzAddr);
-    uint256 collected = ntzAddr.balance.sub(initialReserve);
+    var contr = Controller(controllerAddr);
+    uint256 collected = controllerAddr.balance.sub(initialReserve);
     if (now > startTime.add(maxDuration)) {
       if (collected >= softCap) {
         // softCap reached, close
@@ -95,37 +95,38 @@ contract PowerEvent {
   }
   
   function completeFailed() isState(EventState.Failed) {
-    var NutzContract = Nutz(ntzAddr);
+    var contr = Controller(controllerAddr);
     // move floor (set ceiling or max floor)
-    uint256 ceiling = NutzContract.ceiling();
-    NutzContract.moveFloor(ceiling);
+    uint256 ceiling = contr.ceiling();
+    contr.moveFloor(ceiling);
     // remove access
-    NutzContract.removeAdmin(address(this));
+    contr.removeAdmin(address(this));
     // set state
     state = EventState.Complete;
   }
   
   function completeClosed() isState(EventState.Closed) {
-    var NutzContract = Nutz(ntzAddr);
+    var contr = Controller(controllerAddr);
     // move ceiling
-    uint256 ceiling = NutzContract.ceiling();
+    uint256 ceiling = contr.ceiling();
     uint256 newCeiling = ceiling.mul(RATE_FACTOR).div(discountRate);
-    NutzContract.moveCeiling(newCeiling);
+    contr.moveCeiling(newCeiling);
     // dilute power
-    uint256 newSupply = NutzContract.totalSupply().sub(initialSupply);
-    NutzContract.dilutePower(newSupply);
+    uint256 totalSupply = contr.activeSupply().add(contr.powerPool()).add(contr.burnPool());
+    uint256 newSupply = totalSupply.sub(initialSupply);
+    contr.dilutePower(newSupply);
     // set max power
     var PowerContract = ERC20(powerAddr);
     uint256 authorizedPower = PowerContract.totalSupply();
-    NutzContract.setMaxPower(authorizedPower);
+    contr.setMaxPower(authorizedPower);
     // pay out milestone
-    uint256 collected = ntzAddr.balance.sub(initialReserve);
+    uint256 collected = controllerAddr.balance.sub(initialReserve);
     for (uint256 i = 0; i < milestoneRecipients.length; i++) {
       uint256 payoutAmount = collected.mul(milestoneShares[i]).div(RATE_FACTOR);
-      NutzContract.allocateEther(payoutAmount, milestoneRecipients[i]);
+      contr.allocateEther(payoutAmount, milestoneRecipients[i]);
     }
     // remove access
-    NutzContract.removeAdmin(address(this));
+    contr.removeAdmin(address(this));
     // set state
     state = EventState.Complete;
   }
