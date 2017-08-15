@@ -32,6 +32,7 @@ contract('Nutz', (accounts) => {
   it('should allow to purchase', async () => {
     // create token contract
     const ceiling = new BigNumber(30000);
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
     // purchase some tokens with ether
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
@@ -47,6 +48,7 @@ contract('Nutz', (accounts) => {
   it('should prevent purchase if value 0', async () => {
     // create token contract
     const ceiling = new BigNumber(30000);
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
     // purchase some tokens with ether
     try {
@@ -60,8 +62,8 @@ contract('Nutz', (accounts) => {
   it('should allow to sell', async () => {
     // create contract and purchase tokens for 1 ether
     const ceiling = new BigNumber(1000);
-    await controller.moveCeiling(ceiling);
     await controller.moveFloor(ceiling);
+    await controller.moveCeiling(ceiling);
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     let babzBalance = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalance.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'token wasn\'t issued to account');
@@ -91,8 +93,9 @@ contract('Nutz', (accounts) => {
     await controller.setContracts(storage.address, nutz.address, power.address, pull.address);
     // create contract and purchase tokens for 1 ether
     const ceiling = new BigNumber(1000);
-    await controller.moveCeiling(ceiling);
     await controller.moveFloor(ceiling);
+    await controller.moveCeiling(ceiling);
+    
     
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
 
@@ -122,6 +125,7 @@ contract('Nutz', (accounts) => {
       await controller.setContracts(storage.address, nutz.address, power.address, pull.address);
       // create contract and purchase tokens for 1 ether
       const ceiling = new BigNumber(1000);
+      await controller.moveFloor(INFINITY);
       await controller.moveCeiling(ceiling);
       
       await nutz.purchase({from: accounts[0], value: ONE_ETH });
@@ -145,8 +149,8 @@ contract('Nutz', (accounts) => {
   it('setting floor to infinity should disable sell', async () => {
     // create contract and purchase tokens for 1 ether
     const ceiling = new BigNumber(1000);
-    await controller.moveCeiling(ceiling);
     await controller.moveFloor(ceiling);
+    await controller.moveCeiling(ceiling);
 
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     let babzBalance = await nutz.balanceOf.call(accounts[0]);
@@ -165,8 +169,8 @@ contract('Nutz', (accounts) => {
   it('setting floor to infinity should disable claim', async () => {
     // create contract and purchase tokens for 1 ether
     const ceiling = new BigNumber(1000);
-    await controller.moveCeiling(ceiling);
     await controller.moveFloor(ceiling);
+    await controller.moveCeiling(ceiling);
 
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     let babzBalance = await nutz.balanceOf.call(accounts[0]);
@@ -185,6 +189,7 @@ contract('Nutz', (accounts) => {
 
   it('should call erc223 when purchase', async () => {
     let receiver = await ERC223ReceiverMock.new();
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(1500);
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     await receiver.forward(nutz.address, ONE_ETH);
@@ -193,6 +198,7 @@ contract('Nutz', (accounts) => {
   });
 
   it('should allow to disable transfer to non-contract accounts.', async () => {
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(1500);
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     const bal = await nutz.balanceOf.call(accounts[0]);
@@ -221,8 +227,8 @@ contract('Nutz', (accounts) => {
   it('allocate_funds_to_beneficiary and claim_revenue', async () => {
     // create token contract, default ceiling == floor
     const ceiling = new BigNumber(1500);
-    await controller.moveCeiling(ceiling);
     await controller.moveFloor(ceiling.mul(2));
+    await controller.moveCeiling(ceiling);
     // purchase NTZ for 1 ETH
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     const floor = await controller.floor.call();
@@ -245,6 +251,7 @@ contract('Nutz', (accounts) => {
   it('should handle The sale administrator sets floor = infinity, ceiling = 0', async () => {
     // create token contract, default ceiling == floor
     let ceiling = new BigNumber(100);
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     const babzBalanceBefore = await nutz.balanceOf.call(accounts[0]);
@@ -274,6 +281,7 @@ contract('Nutz', (accounts) => {
   it('the sale administrator can’t raise the floor price if doing so would make it unable to purchase all of the tokens at the floor price', async () => {
     // create contract and buy some tokens
     let ceiling = new BigNumber(4000);
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     let supplyBabz = await nutz.activeSupply.call(accounts[0]);
@@ -297,8 +305,8 @@ contract('Nutz', (accounts) => {
   it('allocate_funds_to_beneficiary fails if allocating those funds would mean that the sale mechanism is no longer able to buy back all outstanding tokens',  async () => {
     // create token contract, default ceiling == floor
     const ceiling = new BigNumber(1500);
-    await controller.moveCeiling(ceiling);
     await controller.moveCeiling(2000);
+    await controller.moveCeiling(ceiling);
 
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     const floor = await controller.floor.call();
@@ -320,6 +328,7 @@ contract('Nutz', (accounts) => {
   it('should return correct balances after transfer', async () => {
     // create contract and buy some tokens
     const ceiling = new BigNumber(100);
+    await controller.moveCeiling(INFINITY);
     await controller.moveCeiling(ceiling);
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     let babzBalance = await nutz.balanceOf.call(accounts[0]);

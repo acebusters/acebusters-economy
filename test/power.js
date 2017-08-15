@@ -43,6 +43,7 @@ contract('Power', (accounts) => {
   it("should allow to power up and power down with no burn.", async () => {
     const ALICE = accounts[0];
     const BOB = accounts[1];
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
     // get some NTZ for 1 ETH
     await nutz.purchase({from: ALICE, value: WEI_AMOUNT });
@@ -97,6 +98,7 @@ contract('Power', (accounts) => {
   });
 
   it('should allow to execute event manually', async () => {
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE * 20);
     const powerAddr = await controller.powerAddr.call();
     const pullPayment = PullPayment.at(await controller.pullAddr.call());
@@ -157,6 +159,7 @@ contract('Power', (accounts) => {
   it('should allow to slash down request');
 
   it("should allow to slash power balance", async () => {
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
     const power = Power.at(await controller.powerAddr.call());
     

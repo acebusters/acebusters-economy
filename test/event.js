@@ -6,6 +6,7 @@ const Controller = artifacts.require('./Controller.sol');
 const PowerEvent = artifacts.require('./PowerEvent.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
+const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
 const babz = (ntz) => new BigNumber(NTZ_DECIMALS).mul(ntz);
 const WEI_AMOUNT = web3.toWei(0.001, 'ether');
@@ -23,6 +24,7 @@ contract('PowerEvent', (accounts) => {
     power.transferOwnership(controller.address);
     storage.transferOwnership(controller.address);
     pull.transferOwnership(controller.address);
+    await controller.moveCeiling(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
     await controller.setOnlyContractHolders(false);
 

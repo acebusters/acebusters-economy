@@ -16,11 +16,6 @@ contract Controller {
   function Controller(address _storageAddr, address _nutzAddr, address _powerAddr, address _pullAddr, uint256 _downtime) {
     admins.length = 1;
     admins[0] = msg.sender;
-    // initial purchase price
-    ceiling = 0;
-    // initial sale price
-    uint256 INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-    salePrice = INFINITY;
     onlyContractHolders = false;
     
     storageAddr = _storageAddr;
@@ -115,11 +110,13 @@ contract Controller {
   }
   
   function moveCeiling(uint256 _newCeiling) public onlyAdmins {
+    uint256 salePrice = Storage(storageAddr).getUInt('Nutz', 'salePrice');
     require(_newCeiling <= salePrice);
-    ceiling = _newCeiling;
+    Storage(storageAddr).setUInt('Nutz', 'purchasePrice', _newCeiling);
   }
   
   function moveFloor(uint256 _newSalePrice) public onlyAdmins {
+    uint256 ceiling = Storage(storageAddr).getUInt('Nutz', 'purchasePrice');
     require(_newSalePrice >= ceiling);
     // moveFloor fails if the administrator tries to push the floor so low
     // that the sale mechanism is no longer able to buy back all tokens at
@@ -128,7 +125,7 @@ contract Controller {
     if (_newSalePrice < INFINITY) {
       require(this.balance >= activeSupply.mul(1000000).div(_newSalePrice)); // 1,000,000 WEI, used as price factor
     }
-    salePrice = _newSalePrice;
+    Storage(storageAddr).setUInt('Nutz', 'salePrice', _newSalePrice);
   }
 
   function setOnlyContractHolders(bool _onlyContractHolders) public onlyAdmins {
@@ -147,6 +144,7 @@ contract Controller {
     // allocateEther fails if allocating those funds would mean that the
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
+    uint256 salePrice = Storage(storageAddr).getUInt('Nutz', 'salePrice');
     require(this.balance.sub(_amountWei) >= activeSupply.mul(1000000).div(salePrice)); // 1,000,000 WEI, used as price factor
     PullPayment(pullAddr).asyncSend.value(_amountWei)(_beneficiary);
   }
@@ -336,9 +334,9 @@ contract Controller {
 
   // the Token sale mechanism parameters:
   // ceiling is the number of NTZ received for purchase with 1 ETH
-  uint256 public ceiling;
-  // floor is the number of NTZ needed, to receive 1 ETH in sell
-  uint256 internal salePrice;
+  function ceiling() constant returns (uint256) {
+    return Storage(storageAddr).getUInt('Nutz', 'purchasePrice');
+  }
 
 
   // returns either the salePrice, or if reserve does not suffice
@@ -349,6 +347,7 @@ contract Controller {
       return INFINITY;
     }
     uint256 maxFloor = activeSupply.mul(1000000).div(this.balance); // 1,000,000 WEI, used as price factor
+    uint256 salePrice = Storage(storageAddr).getUInt('Nutz', 'salePrice');
     // return max of maxFloor or salePrice
     return maxFloor >= salePrice ? maxFloor : salePrice;
   }
@@ -378,6 +377,7 @@ contract Controller {
 
   function purchase(address _sender) public onlyNutz payable returns (uint256) {
     // disable purchases if ceiling set to 0
+    uint256 ceiling = Storage(storageAddr).getUInt('Nutz', 'purchasePrice');
     require(ceiling > 0);
 
     uint256 amountBabz = ceiling.mul(msg.value).div(1000000); // 1,000,000 WEI, used as price factor
