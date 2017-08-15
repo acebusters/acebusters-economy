@@ -1,5 +1,5 @@
 const Nutz = artifacts.require('./Nutz.sol');
-const NutzMock = artifacts.require('./helpers/NutzMock.sol');
+const Controller = artifacts.require('./Controller.sol');
 const Power = artifacts.require('./Power.sol');
 const PullPayment = artifacts.require('./PullPayment.sol');
 const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol');

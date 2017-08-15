@@ -6,6 +6,7 @@ import "./Nutz.sol";
 import "./Power.sol";
 import "./PullPayment.sol";
 import "./Storage.sol";
+import "./ControllerInterface.sol";
 import "./ERC223ReceivingContract.sol";
 
 contract Controller {
@@ -20,7 +21,7 @@ contract Controller {
     // initial sale price
     uint256 INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     salePrice = INFINITY;
-    onlyContractHolders = true;
+    onlyContractHolders = false;
     
     storageAddr = _storageAddr;
     nutzAddr = _nutzAddr;
@@ -156,6 +157,11 @@ contract Controller {
     burnPool = burnPool.add(_amountBabz);
   }
 
+  function setMaxPower(uint256 _maxPower) public onlyAdmins {
+    require(outstandingPower <= _maxPower && _maxPower < authorizedPower);
+    maxPower = _maxPower;
+  }
+
   function slashPower(address _holder, uint256 _value, bytes32 _data) public onlyAdmins {
     // get the previously outstanding power of which _value was slashed
 
@@ -185,11 +191,6 @@ contract Controller {
     balances[powerAddr] = powerPool.sub(slashingBabz);
   }
 
-
-  function setMaxPower(uint256 _maxPower) public onlyAdmins {
-    require(outstandingPower <= _maxPower && _maxPower < authorizedPower);
-    maxPower = _maxPower;
-  }
 
 
 
@@ -263,10 +264,13 @@ contract Controller {
     powBalance[_owner] = _value;
   }
 
-  function createDownRequest(address _owner, uint256 _amountPower, uint256 _time) public onlyPower {
-    require(msg.sender == powerAddr);
+  function createDownRequest(address _owner, uint256 _amountPower) public onlyPower {
+    // prevent powering down tiny amounts
+    // when powering down, at least totalSupply/minShare Power should be claimed
+    require(_amountPower >= authorizedPower.div(10000)); // minShare = 10000;
+    powBalance[_owner] = powBalance[_owner].sub(_amountPower);
     uint256 pos = downs.length++;
-    downs[pos] = DownRequest(_owner, _amountPower, _amountPower, _time);
+    downs[pos] = DownRequest(_owner, _amountPower, _amountPower, now);
   }
 
   // executes a powerdown request
@@ -317,7 +321,7 @@ contract Controller {
   // ceiling is the number of NTZ received for purchase with 1 ETH
   uint256 public ceiling;
   // floor is the number of NTZ needed, to receive 1 ETH in sell
-  uint256 salePrice;
+  uint256 internal salePrice;
 
 
   // returns either the salePrice, or if reserve does not suffice
@@ -352,11 +356,10 @@ contract Controller {
   }
 
   function purchase() public onlyNutz payable returns (uint256) {
-    require(msg.value > 0);
     // disable purchases if ceiling set to 0
     require(ceiling > 0);
 
-    uint256 amountBabz = msg.value.mul(ceiling).div(1000000); // 1,000,000 WEI, used as price factor
+    uint256 amountBabz = ceiling.mul(msg.value).div(1000000); // 1,000,000 WEI, used as price factor
     // avoid deposits that issue nothing
     // might happen with very high purchase price
     require(amountBabz > 0);
@@ -370,7 +373,7 @@ contract Controller {
     balances[msg.sender] = balances[msg.sender].add(amountBabz);
 
     bytes memory empty;
-    _checkDestination(address(this), msg.sender, amountBabz, empty);
+    //_checkDestination(address(this), msg.sender, amountBabz, empty);
     return amountBabz;
   }
 
@@ -404,10 +407,10 @@ contract Controller {
 
     uint256 amountWei = _amountBabz.mul(1000000).div(effectiveFloor);  // 1,000,000 WEI, used as price factor
     // make sure power pool shrinks proportional to economy
-    uint256 powerPool = balances[powerAddr];
-    if (powerPool > 0) {
-      uint256 powerShare = powerPool.mul(_amountBabz).div(activeSupply);
-      balances[powerAddr] = powerPool.sub(powerShare);
+    uint256 powerPoolSize = balances[powerAddr];
+    if (powerPoolSize > 0) {
+      uint256 powerShare = powerPoolSize.mul(_amountBabz).div(activeSupply);
+      balances[powerAddr] = powerPoolSize.sub(powerShare);
     }
     activeSupply = activeSupply.sub(_amountBabz);
     balances[_from] = balances[_from].sub(_amountBabz);

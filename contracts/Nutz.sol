@@ -65,16 +65,20 @@ contract Nutz is Ownable, ERC20 {
 
 
 
+  // ############################################
+  // ########### ADMIN FUNCTIONS ################
+  // ############################################
+
+  function powerDown(address _powerAddr, address _holder, uint256 _amountBabz) onlyOwner {
+    // NTZ transfered from power pool to user's balance
+    Transfer(_powerAddr, _holder, _amountBabz);
+  }
+
+
 
   // ############################################
   // ########### PUBLIC FUNCTIONS ###############
   // ############################################
-
-
-  function purchase() public payable {
-    uint256 amountBabz = ControllerInterface(owner).purchase();
-    Purchase(msg.sender, amountBabz);
-  }
   
   function approve(address _spender, uint256 _amountBabz) public {
     require(_spender != address(this));
@@ -87,7 +91,7 @@ contract Nutz is Ownable, ERC20 {
   function transfer(address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
     require(_amountBabz > 0);
     require(_to != address(this));
-    return ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
+    ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
     Transfer(msg.sender, _to, _amountBabz);
     return true;
   }
@@ -101,15 +105,21 @@ contract Nutz is Ownable, ERC20 {
     return transfer(_to, _amountBabz, _data);
   }
 
-
   function transferFrom(address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
-    return ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz, _data);
+    ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz, _data);
     Transfer(_from, _to, _amountBabz);
+    return true;
   }
 
   function transferFrom(address _from, address _to, uint256 _amountBabz) public returns (bool) {
     bytes memory empty;
     return transferFrom(_from, _to, _amountBabz, empty);
+  }
+
+  function purchase() public payable {
+    require(msg.value > 0);
+    uint256 amountBabz = ControllerInterface(owner).purchase.value(msg.value)();
+    Purchase(msg.sender, amountBabz);
   }
 
   function sell(uint256 _value) public {
@@ -120,6 +130,7 @@ contract Nutz is Ownable, ERC20 {
   function powerUp(uint256 _value) public {
     var contr = ControllerInterface(owner);
     contr.powerUp(msg.sender, _value);
+    // NTZ transfered from user's balance to power pool
     Transfer(msg.sender, contr.powerAddr(), _value);
   }
 

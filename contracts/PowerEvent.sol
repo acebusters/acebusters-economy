@@ -68,7 +68,6 @@ contract PowerEvent {
   }
   
   function stopCollection() isState(EventState.Collecting) {
-    var contr = Controller(controllerAddr);
     uint256 collected = controllerAddr.balance.sub(initialReserve);
     if (now > startTime.add(maxDuration)) {
       if (collected >= softCap) {
