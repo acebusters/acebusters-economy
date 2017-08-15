@@ -55,15 +55,42 @@ contract Nutz is ERC20 {
   // maxPower has a valid value between outstandingPower and authorizedPow/2
   uint256 public maxPower = 0;
 
-  function setOutstandingPower(uint256 _value) {
-    require(msg.sender == powerAddr);
-    outstandingPower = _value;
+
+  // time it should take to power down
+  uint256 public downtime;
+
+  // data structure for withdrawals
+  struct DownRequest {
+    address owner;
+    uint256 total;
+    uint256 left;
+    uint256 start;
+  }
+  DownRequest[] public downs;
+
+  function vestedDown(uint256 _pos, uint256 _now) constant returns (uint256) {
+    if (downs.length <= _pos) {
+      return 0;
+    }
+    if (_now <= downs[_pos].start) {
+      return 0;
+    }
+    // calculate amountVested
+    // amountVested is amount that can be withdrawn according to time passed
+    DownRequest storage req = downs[_pos];
+    uint256 timePassed = _now.sub(req.start);
+    if (timePassed > downtime) {
+     timePassed = downtime;
+    }
+    uint256 amountVested = req.total.mul(timePassed).div(downtime);
+    uint256 amountFrozen = req.total.sub(amountVested);
+    if (req.left <= amountFrozen) {
+      return 0;
+    }
+    return req.left.sub(amountFrozen);
   }
 
-  function setAuthorizedPower(uint256 _value) {
-    require(msg.sender == powerAddr);
-    authorizedPower = _value;
-  }
+
   
   // the Token sale mechanism parameters:
   // ceiling is the number of NTZ received for purchase with 1 ETH
@@ -119,7 +146,7 @@ contract Nutz is ERC20 {
     return balances[powerAddr];
   }
 
-  function Nutz(uint256 _downTime) {
+  function Nutz(uint256 _downtime) {
     admins.length = 1;
     admins[0] = msg.sender;
     // initial purchase price
@@ -127,13 +154,10 @@ contract Nutz is ERC20 {
     // initial sale price
     salePrice = INFINITY;
     onlyContractHolders = true;
-    powerAddr = new Power(_downTime);
+    powerAddr = new Power();
+    downtime = _downtime;
     pullAddr = new PullPayment();
   }
-
-
-
-
 
 
   // ############################################
@@ -243,6 +267,57 @@ contract Nutz is ERC20 {
 
 
   // ############################################
+  // ########### POWER   FUNCTIONS  #############
+  // ############################################
+
+
+  function setOutstandingPower(uint256 _value) {
+    require(msg.sender == powerAddr);
+    outstandingPower = _value;
+  }
+
+  function setAuthorizedPower(uint256 _value) {
+    require(msg.sender == powerAddr);
+    authorizedPower = _value;
+  }
+
+  function createDownRequest(address _owner, uint256 _amountPower, uint256 _time) {
+    require(msg.sender == powerAddr);
+    uint256 pos = downs.length++;
+    downs[pos] = DownRequest(_owner, _amountPower, _amountPower, _time);
+  }
+
+  // executes a powerdown request
+  function downTick(uint256 _pos, uint256 _now) {
+    require(msg.sender == powerAddr);
+    uint256 amountPow = vestedDown(_pos, _now);
+    DownRequest storage req = downs[_pos];
+
+    // prevent power down in tiny steps
+    uint256 minStep = req.total.div(10);
+    require(req.left <= minStep || minStep <= amountPow);
+
+    // calculate token amount representing share of power
+    uint256 amountBabz = amountPow.mul(totalSupply()).div(authorizedPower);
+    // transfer power and tokens
+    outstandingPower = outstandingPower.sub(amountPow);
+    req.left = req.left.sub(amountPow);
+    bytes memory empty;
+    assert(_transfer(powerAddr, req.owner, amountBabz, empty));
+    // down request completed
+    if (req.left == 0) {
+      // if not last element, switch with last
+      if (_pos < downs.length - 1) {
+        downs[_pos] = downs[downs.length - 1];
+      }
+      // then cut off the tail
+      downs.length--;
+    }
+  }
+
+
+
+  // ############################################
   // ########### ADMIN FUNCTIONS ################
   // ############################################
 
@@ -338,11 +413,19 @@ contract Nutz is ERC20 {
 
   function slashDownRequest(uint256 _pos, address _holder, uint256 _value, bytes32 _data) onlyAdmins {
     // get the previously outstanding power of which _value was slashed
-    uint256 outstandingPower = Power(powerAddr).slashDownRequest(_pos, _holder, _value, _data);
+    DownRequest storage req = downs[_pos];
+    require(req.owner == _holder);
+    req.left = req.left.sub(_value);
+    uint256 previouslyOutstanding = outstandingPower;
+    outstandingPower = outstandingPower.sub(_value);
+
+    Power(powerAddr).slashPower(_holder, _value, _data);
+
     uint256 powerPool = balances[powerAddr];
-    uint256 slashingBabz = _value.mul(powerPool).div(outstandingPower);
+    uint256 slashingBabz = _value.mul(powerPool).div(previouslyOutstanding);
     balances[powerAddr] = powerPool.sub(slashingBabz);
   }
+
 
   function setMaxPower(uint256 _maxPower) onlyAdmins {
     require(outstandingPower <= _maxPower && _maxPower < authorizedPower);
