@@ -1,12 +1,10 @@
 pragma solidity 0.4.11;
 
-import "./SafeMath.sol";
 import "./ERC20Basic.sol";
 import "./Ownable.sol";
 import "./ControllerInterface.sol";
 
 contract Power is Ownable, ERC20Basic {
-  using SafeMath for uint;
 
   event Slashing(address indexed holder, uint value, bytes32 data);
 

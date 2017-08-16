@@ -20,12 +20,12 @@ contract('PowerEvent', (accounts) => {
     const power = await Power.new();
     const storage = await Storage.new();
     const pull = await PullPayment.new();
-    controller = await Controller.new();
-    await controller.setContracts(storage.address, nutz.address, power.address, pull.address);
+    controller = await Controller.new(power.address, pull.address, nutz.address, storage.address);
     nutz.transferOwnership(controller.address);
     power.transferOwnership(controller.address);
     storage.transferOwnership(controller.address);
     pull.transferOwnership(controller.address);
+    await controller.unpause();
     await controller.moveCeiling(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
     await controller.setOnlyContractHolders(false);

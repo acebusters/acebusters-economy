@@ -1,6 +1,5 @@
 pragma solidity 0.4.11;
 
-import "./SafeMath.sol";
 import "./ERC20.sol";
 import "./Ownable.sol";
 import "./ControllerInterface.sol";
@@ -10,7 +9,6 @@ import "./ControllerInterface.sol";
  * sold. It is based of the zeppelin token contract.
  */
 contract Nutz is Ownable, ERC20 {
-  using SafeMath for uint;
 
   event Purchase(address indexed purchaser, uint256 value);
   event Sell(address indexed seller, uint256 value);

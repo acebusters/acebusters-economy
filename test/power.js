@@ -27,12 +27,12 @@ contract('Power', (accounts) => {
     power = await Power.new();
     storage = await Storage.new();
     pull = await PullPayment.new();
-    controller = await Controller.new();
-    await controller.setContracts(storage.address, nutz.address, power.address, pull.address);
+    controller = await Controller.new(power.address, pull.address, nutz.address, storage.address);
     nutz.transferOwnership(controller.address);
     power.transferOwnership(controller.address);
     storage.transferOwnership(controller.address);
     pull.transferOwnership(controller.address);
+    await controller.unpause();
   });
 
   it('should init contract', async () => {

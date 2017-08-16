@@ -23,11 +23,11 @@ contract('Nutz', (accounts) => {
     nutz = await Nutz.new();
     storage = await Storage.new();
     pull = await PullPayment.new();
-    controller = await Controller.new();
-    await controller.setContracts(storage.address, nutz.address, '0x00', pull.address);
+    controller = await Controller.new('0x00', pull.address, nutz.address, storage.address);
     nutz.transferOwnership(controller.address);
     storage.transferOwnership(controller.address);
     pull.transferOwnership(controller.address);
+    await controller.unpause();
   });
 
   it('should allow to purchase', async () => {
