@@ -3,7 +3,7 @@ const Power = artifacts.require('./Power.sol');
 const Storage = artifacts.require('./Storage.sol');
 const PullPayment = artifacts.require('./PullPayment.sol');
 const Controller = artifacts.require('./Controller.sol');
-const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol');
+//const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol');
 const assertJump = require('./helpers/assertJump');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
@@ -188,15 +188,15 @@ contract('Nutz', (accounts) => {
     }
   });
 
-  it('should call erc223 when purchase', async () => {
-    let receiver = await ERC223ReceiverMock.new();
-    await controller.moveFloor(INFINITY);
-    await controller.moveCeiling(1500);
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
-    await receiver.forward(nutz.address, ONE_ETH);
-    const isCalled = await receiver.called.call();
-    assert(isCalled, 'erc223 interface has not been invoked on purchase');
-  });
+  // it('should call erc223 when purchase', async () => {
+  //   let receiver = await ERC223ReceiverMock.new();
+  //   await controller.moveFloor(INFINITY);
+  //   await controller.moveCeiling(1500);
+  //   await nutz.purchase({from: accounts[0], value: ONE_ETH });
+  //   await receiver.forward(nutz.address, ONE_ETH);
+  //   const isCalled = await receiver.called.call();
+  //   assert(isCalled, 'erc223 interface has not been invoked on purchase');
+  // });
 
   it('should allow to disable transfer to non-contract accounts.', async () => {
     await controller.moveFloor(INFINITY);
@@ -306,7 +306,7 @@ contract('Nutz', (accounts) => {
   it('allocate_funds_to_beneficiary fails if allocating those funds would mean that the sale mechanism is no longer able to buy back all outstanding tokens',  async () => {
     // create token contract, default ceiling == floor
     const ceiling = new BigNumber(1500);
-    await controller.moveCeiling(2000);
+    await controller.moveFloor(2000);
     await controller.moveCeiling(ceiling);
 
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
@@ -329,15 +329,14 @@ contract('Nutz', (accounts) => {
   it('should return correct balances after transfer', async () => {
     // create contract and buy some tokens
     const ceiling = new BigNumber(100);
-    await controller.moveCeiling(INFINITY);
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
     let babzBalance = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalance.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'amount wasn\'t issued to account');
     // transfer token to other account
     const halfbabzBalance = babzBalance.dividedBy(2);
-    let transfer = await nutz.transfer(accounts[1], halfbabzBalance, "0x00");
-
+    await nutz.transfer(accounts[1], halfbabzBalance, "0x00");
     // check balances of sender and recepient
     const newbabzBalance = await nutz.balanceOf(accounts[0]);
     assert.equal(newbabzBalance.toNumber(), halfbabzBalance.toNumber(), 'amount hasn\'t been transfered');
@@ -352,6 +351,37 @@ contract('Nutz', (accounts) => {
     } catch(error) {
       assertJump(error);
     }
+  });
+
+  it('should allow upgrade controller', async () => {
+    // create token contract
+    const ceiling = new BigNumber(30000);
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(ceiling);
+    // purchase some tokens with ether
+    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    // check balance, supply and reserve
+    const babzBalBefore = await nutz.balanceOf.call(accounts[0]);
+    assert.equal(babzBalBefore.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
+
+    await controller.pause();
+
+    const newController = await Controller.new('0x00', pull.address, nutz.address, storage.address);
+    await controller.kill(newController.address);
+    nutz.transferOwnership(newController.address);
+    storage.transferOwnership(newController.address);
+    pull.transferOwnership(newController.address);
+    // check balance with new controller
+    const babzBalAfter = await nutz.balanceOf.call(accounts[0]);
+    assert.equal(babzBalAfter.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
+    // check eth migrated
+    const reserveWei = web3.eth.getBalance(newController.address);
+    assert.equal(reserveWei.toNumber(), ONE_ETH, 'ether wasn\'t sent to contract');
+    await newController.unpause();
+    await newController.setOnlyContractHolders(false);
+    await nutz.transfer(accounts[1], babzBalAfter);
+    const babzBalEnd = await nutz.balanceOf.call(accounts[0]);
+    assert.equal(babzBalEnd.toNumber(), 0, 'transfer failed after upgrade');
   });
 
 });

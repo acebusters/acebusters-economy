@@ -72,7 +72,7 @@ contract NutzEnabled is Pausable, StorageEnabled {
     require(_to != address(this));
     require(_amountBabz > 0);
     _setBabzBalanceOf(_from, babzBalanceOf(_from).sub(_amountBabz));
-    _setBabzBalanceOf(_to, babzBalanceOf(_to).sub(_amountBabz));
+    _setBabzBalanceOf(_to, babzBalanceOf(_to).add(_amountBabz));
     _checkDestination(_from, _to, _amountBabz, _data);
   }
 

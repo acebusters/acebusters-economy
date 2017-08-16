@@ -15,12 +15,12 @@ contract Controller is PowerEnabled {
     pullAddr = _pullAddr;
   }
 
-  function kill() public onlyAdmins whenPaused {
-    Ownable(powerAddr).transferOwnership(msg.sender);
-    Ownable(pullAddr).transferOwnership(msg.sender);
-    Ownable(nutzAddr).transferOwnership(msg.sender);
-    Ownable(storageAddr).transferOwnership(msg.sender);
-    selfdestruct(msg.sender);
+  function kill(address _newController) public onlyAdmins whenPaused {
+    if (powerAddr != 0x0) { Ownable(powerAddr).transferOwnership(msg.sender); }
+    if (pullAddr != 0x0) { Ownable(pullAddr).transferOwnership(msg.sender); }
+    if (nutzAddr != 0x0) { Ownable(nutzAddr).transferOwnership(msg.sender); }
+    if (storageAddr != 0x0) { Ownable(storageAddr).transferOwnership(msg.sender); }
+    selfdestruct(_newController);
   }
 
 }
