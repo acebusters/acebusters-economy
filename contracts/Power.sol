@@ -15,15 +15,11 @@ contract Power is Ownable, ERC20Basic {
   uint256 public decimals = 12;
 
   function balanceOf(address _holder) constant returns (uint256 balance) {
-    return ControllerInterface(owner).getPowerBal(_holder);
+    return ControllerInterface(owner).powerBalanceOf(_holder);
   }
 
   function totalSupply() constant returns (uint256) {
-    var contr = ControllerInterface(owner);
-    uint256 issuedPower = contr.authorizedPower().div(2);
-    uint maxPower = contr.maxPower();
-    // return max of maxPower or issuedPower
-    return maxPower >= issuedPower ? maxPower : issuedPower;
+    return ControllerInterface(owner).powerTotalSupply();
   }
 
   function activeSupply() constant returns (uint256) {

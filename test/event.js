@@ -13,13 +13,15 @@ const WEI_AMOUNT = web3.toWei(0.001, 'ether');
 const CEILING_PRICE = 20000;
 
 contract('PowerEvent', (accounts) => {
+  let controller;
 
   it('should allow to execute event through policy', async () => {
     const nutz = await Nutz.new();
     const power = await Power.new();
     const storage = await Storage.new();
     const pull = await PullPayment.new();
-    const controller = await Controller.new(storage.address, nutz.address, power.address, pull.address, 0);
+    controller = await Controller.new();
+    await controller.setContracts(storage.address, nutz.address, power.address, pull.address);
     nutz.transferOwnership(controller.address);
     power.transferOwnership(controller.address);
     storage.transferOwnership(controller.address);

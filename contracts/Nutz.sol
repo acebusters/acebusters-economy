@@ -27,7 +27,7 @@ contract Nutz is Ownable, ERC20 {
 
   // returns balances of active holders
   function balanceOf(address _owner) constant returns (uint) {
-    return ControllerInterface(owner).getBabzBal(_owner);
+    return ControllerInterface(owner).babzBalanceOf(_owner);
   }
 
   function totalSupply() constant returns (uint256) {
@@ -126,10 +126,9 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function powerUp(uint256 _value) public {
-    var contr = ControllerInterface(owner);
-    contr.powerUp(msg.sender, _value);
+    ControllerInterface(owner).powerUp(msg.sender, _value);
     // NTZ transfered from user's balance to power pool
-    Transfer(msg.sender, contr.powerAddr(), _value);
+    Transfer(msg.sender, owner, _value);
   }
 
 }

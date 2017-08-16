@@ -4,20 +4,20 @@ import './Ownable.sol';
 
 contract Storage is Ownable {
     struct Crate {
-        mapping(bytes32 => uint) uints;
+        mapping(bytes32 => uint256) uints;
         mapping(bytes32 => address) addresses;
         mapping(bytes32 => bool) bools;
-        mapping(bytes32 => bytes32) bytes32s;
+        mapping(address => uint256) bals;
     }
 
     mapping(bytes32 => Crate) crates;
 
 
-    function setUInt(bytes32 _crate, bytes32 _key, uint _value) onlyOwner {
+    function setUInt(bytes32 _crate, bytes32 _key, uint256 _value) onlyOwner {
         crates[_crate].uints[_key] = _value;
     }
 
-    function getUInt(bytes32 _crate, bytes32 _key) constant returns(uint) {
+    function getUInt(bytes32 _crate, bytes32 _key) constant returns(uint256) {
         return crates[_crate].uints[_key];
     }
 
@@ -37,11 +37,11 @@ contract Storage is Ownable {
         return crates[_crate].bools[_key];
     }
     
-    function setBytes32(bytes32 _crate, bytes32 _key, bytes32 _value) onlyOwner {
-        crates[_crate].bytes32s[_key] = _value;
+    function setBal(bytes32 _crate, address _key, uint256 _value) onlyOwner {
+        crates[_crate].bals[_key] = _value;
     }
 
-    function getBytes32(bytes32 _crate, bytes32 _key) constant returns(bytes32) {
-        return crates[_crate].bytes32s[_key];
+    function getBal(bytes32 _crate, address _key) constant returns(uint256) {
+        return crates[_crate].bals[_key];
     }
 }

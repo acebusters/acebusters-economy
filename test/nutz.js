@@ -23,7 +23,8 @@ contract('Nutz', (accounts) => {
     nutz = await Nutz.new();
     storage = await Storage.new();
     pull = await PullPayment.new();
-    controller = await Controller.new(storage.address, nutz.address, '0x00', pull.address, 0);
+    controller = await Controller.new();
+    await controller.setContracts(storage.address, nutz.address, '0x00', pull.address);
     nutz.transferOwnership(controller.address);
     storage.transferOwnership(controller.address);
     pull.transferOwnership(controller.address);
