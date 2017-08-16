@@ -27,7 +27,7 @@ contract ControllerInterface {
   function authorizedPower() constant returns (uint256);
   function powerTotalSupply() constant returns (uint256);
   
-  function powerUp(address _from, uint256 _amountBabz) public;
+  function powerUp(address _sender, address _from, uint256 _amountBabz) public;
   function downTick(uint256 _pos, uint256 _now) public;
   function createDownRequest(address _owner, uint256 _amountPower) public;
 }

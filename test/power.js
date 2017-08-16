@@ -3,7 +3,6 @@ const Power = artifacts.require('./Power.sol');
 const Storage = artifacts.require('./Storage.sol');
 const PullPayment = artifacts.require('./PullPayment.sol');
 const Controller = artifacts.require('./Controller.sol');
-
 const PowerEvent = artifacts.require('./PowerEvent.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
@@ -46,6 +45,7 @@ contract('Power', (accounts) => {
     const BOB = accounts[1];
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
+    await controller.setDowntime(DOWNTIME);
     // get some NTZ for 1 ETH
     await nutz.purchase({from: ALICE, value: WEI_AMOUNT });
     await controller.dilutePower(0);
@@ -74,7 +74,7 @@ contract('Power', (accounts) => {
     assert.equal(ntz13k.toNumber(), babzTotal2.div(5).toNumber());
     // powerup these tokens and check shares
     await nutz.approve(accounts[2], ntz13k, {from: BOB});
-    await nutz.transferFrom(BOB, power.address, ntz13k, '0x00', {from: accounts[2]});
+    await nutz.transferFrom(BOB, '0x000000000000000000000000000000706f776572', ntz13k, '0x00', {from: accounts[2]});
     const powBalBob = await power.balanceOf.call(BOB);
     assert.equal(powBalBob.toNumber(), powTotal.div(2.5).toNumber(), 'second power up failed');
     
@@ -85,7 +85,7 @@ contract('Power', (accounts) => {
     // power down and check
     const babzBalAliceBefore = await nutz.balanceOf.call(ALICE);
     const babzActiveBefore = await nutz.activeSupply.call();
-    await power.transfer(controller.address, pow20pc, "0x00");
+    await power.transfer('0x00000000000000000000000000000061626e747a', pow20pc, "0x00");
     await power.downTickTest(0, (Date.now() / 1000 | 0) + DOWNTIME);
     const powBalAliceAfter = await power.balanceOf.call(ALICE);
     assert.equal(powBalAliceAfter.toNumber(), pow20pc.toNumber(), 'power down failed in Power contract');
@@ -165,13 +165,12 @@ contract('Power', (accounts) => {
     const power = Power.at(await controller.powerAddr.call());
     
     // get some NTZ for 1 ETH
-    await nutz.purchase({from: accounts[1], value: WEI_AMOUNT });
+    await nutz.purchase({from: accounts[0], value: WEI_AMOUNT });
     await controller.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
 
-    // powerup tokens ( try 3rd party powerUp )
-    await nutz.transferFrom(power.address, accounts[0], babz(15000), '0x00', { from: accounts[1] });
+    await nutz.powerUp(babz(15000));
     const outstandingBefore = await power.activeSupply.call();
     const bal = await power.balanceOf.call(accounts[0]);
     assert.equal(bal.toNumber(), babz(15000), '3rd party powerup failed');

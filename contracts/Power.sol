@@ -11,6 +11,8 @@ contract Power is Ownable, ERC20Basic {
   string public name = "Acebusters Power";
   string public symbol = "ABP";
   uint256 public decimals = 12;
+  address internal powerDownConst = 0x00000000000000000000000000000061626e747a; // 0xNTZ
+                                    
 
   function balanceOf(address _holder) constant returns (uint256 balance) {
     return ControllerInterface(owner).powerBalanceOf(_holder);
@@ -41,7 +43,7 @@ contract Power is Ownable, ERC20Basic {
   // registers a powerdown request
   function transfer(address _to, uint256 _amountPower) public returns (bool success) {
     // make Power not transferable
-    require(_to == owner);
+    require(_to == powerDownConst);
     ControllerInterface(owner).createDownRequest(msg.sender, _amountPower);
     Transfer(msg.sender, owner, _amountPower);
     return true;

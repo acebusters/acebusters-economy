@@ -47,6 +47,7 @@ contract NutzEnabled is Pausable, StorageEnabled {
   }
 
   function approve(address _owner, address _spender, uint256 _amountBabz) public onlyNutz whenNotPaused {
+    require(_owner != _spender);
     allowed[_owner][_spender] = _amountBabz;
   }
 

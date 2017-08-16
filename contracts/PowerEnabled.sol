@@ -1,6 +1,7 @@
 pragma solidity 0.4.11;
 
 import "./Power.sol";
+import "./Nutz.sol";
 import "./MarketEnabled.sol";
 
 contract PowerEnabled is MarketEnabled {
@@ -77,7 +78,7 @@ contract PowerEnabled is MarketEnabled {
 
 
   // this is called when NTZ are deposited into the power pool
-  function powerUp(address _from, uint256 _amountBabz) public onlyNutz whenNotPaused {
+  function powerUp(address _sender, address _from, uint256 _amountBabz) public onlyNutz whenNotPaused {
     uint256 authorizedPow = authorizedPower();
     require(authorizedPow != 0);
     require(_amountBabz != 0);
@@ -87,6 +88,11 @@ contract PowerEnabled is MarketEnabled {
     // check pow limits
     uint256 outstandingPow = outstandingPower();
     require(outstandingPow.add(amountPow) <= maxPower);
+
+    if (_sender != _from) {
+      allowed[_from][_sender] = allowed[_from][_sender].sub(_amountBabz);
+    }
+
     _setOutstandingPower(outstandingPow.add(amountPow));
     
     uint256 powBal = powerBalanceOf(_from).add(amountPow);
@@ -144,9 +150,11 @@ contract PowerEnabled is MarketEnabled {
     downs[pos] = DownRequest(_owner, _amountPower, _amountPower, now);
   }
 
+
+  event Error(uint256 value);
+
   // executes a powerdown request
   function downTick(uint256 _pos, uint256 _now) public onlyPower whenNotPaused {
-    require(msg.sender == powerAddr);
     uint256 amountPow = vestedDown(_pos, _now);
     DownRequest storage req = downs[_pos];
 
@@ -156,12 +164,14 @@ contract PowerEnabled is MarketEnabled {
 
     // calculate token amount representing share of power
     uint256 amountBabz = amountPow.mul(totalSupply()).div(authorizedPower());
+
     // transfer power and tokens
     _setOutstandingPower(outstandingPower().sub(amountPow));
     req.left = req.left.sub(amountPow);
     _setPowerPool(powerPool().sub(amountBabz));
     _setActiveSupply(activeSupply().add(amountBabz));
     _setBabzBalanceOf(req.owner, babzBalanceOf(req.owner).add(amountBabz));
+    Nutz(nutzAddr).powerDown(req.owner, amountBabz);
     bytes memory empty;
     _checkDestination(powerAddr, req.owner, amountBabz, empty);
 

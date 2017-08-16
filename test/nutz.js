@@ -3,7 +3,7 @@ const Power = artifacts.require('./Power.sol');
 const Storage = artifacts.require('./Storage.sol');
 const PullPayment = artifacts.require('./PullPayment.sol');
 const Controller = artifacts.require('./Controller.sol');
-//const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol');
+const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol');
 const assertJump = require('./helpers/assertJump');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
@@ -188,15 +188,15 @@ contract('Nutz', (accounts) => {
     }
   });
 
-  // it('should call erc223 when purchase', async () => {
-  //   let receiver = await ERC223ReceiverMock.new();
-  //   await controller.moveFloor(INFINITY);
-  //   await controller.moveCeiling(1500);
-  //   await nutz.purchase({from: accounts[0], value: ONE_ETH });
-  //   await receiver.forward(nutz.address, ONE_ETH);
-  //   const isCalled = await receiver.called.call();
-  //   assert(isCalled, 'erc223 interface has not been invoked on purchase');
-  // });
+  it('should call erc223 when purchase', async () => {
+    let receiver = await ERC223ReceiverMock.new();
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(1500);
+    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await receiver.forward(nutz.address, ONE_ETH);
+    const isCalled = await receiver.called.call();
+    assert(isCalled, 'erc223 interface has not been invoked on purchase');
+  });
 
   it('should allow to disable transfer to non-contract accounts.', async () => {
     await controller.moveFloor(INFINITY);
