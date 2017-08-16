@@ -1,0 +1,26 @@
+pragma solidity 0.4.11;
+
+import "./PowerEnabled.sol";
+
+contract Controller is PowerEnabled {
+
+  function Controller(address _powerAddr, address _pullAddr, address _nutzAddr, address _storageAddr) 
+    PowerEnabled(_powerAddr, _pullAddr, _nutzAddr, _storageAddr) {
+  }
+
+  function setContracts(address _storageAddr, address _nutzAddr, address _powerAddr, address _pullAddr) public onlyAdmins whenPaused {
+    storageAddr = _storageAddr;
+    nutzAddr = _nutzAddr;
+    powerAddr = _powerAddr;
+    pullAddr = _pullAddr;
+  }
+
+  function kill(address _newController) public onlyAdmins whenPaused {
+    if (powerAddr != 0x0) { Ownable(powerAddr).transferOwnership(msg.sender); }
+    if (pullAddr != 0x0) { Ownable(pullAddr).transferOwnership(msg.sender); }
+    if (nutzAddr != 0x0) { Ownable(nutzAddr).transferOwnership(msg.sender); }
+    if (storageAddr != 0x0) { Ownable(storageAddr).transferOwnership(msg.sender); }
+    selfdestruct(_newController);
+  }
+
+}
