@@ -26,7 +26,7 @@ contract('PowerEvent', (accounts) => {
     storage.transferOwnership(controller.address);
     pull.transferOwnership(controller.address);
     await controller.unpause();
-    await controller.moveCeiling(INFINITY);
+    await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
     await controller.setOnlyContractHolders(false);
 
