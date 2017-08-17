@@ -30,6 +30,15 @@ contract('Nutz', (accounts) => {
     await controller.unpause();
   });
 
+  async function initPower() {
+    const power = await Power.new();
+    power.transferOwnership(controller.address);
+    await controller.pause();
+    await controller.setContracts(storage.address, nutz.address, power.address, pull.address);
+    await controller.unpause();
+    return power;
+  };
+
   it('should allow to purchase', async () => {
     // create token contract
     const ceiling = new BigNumber(30000);
@@ -89,15 +98,13 @@ contract('Nutz', (accounts) => {
   });
 
   it('should allow to sell with active power pool', async () => {
-    const power = await Power.new();
-    power.transferOwnership(controller.address);
-    await controller.setContracts(storage.address, nutz.address, power.address, pull.address);
+    const power = await initPower();
     // create contract and purchase tokens for 1 ether
     const ceiling = new BigNumber(1000);
     await controller.moveFloor(ceiling);
     await controller.moveCeiling(ceiling);
-    
-    
+
+
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
 
     // initiate power pool
@@ -121,14 +128,12 @@ contract('Nutz', (accounts) => {
   describe('#balanceOf()', () => {
 
     it('should return 0 for power contract address', async () => {
-      const power = await Power.new();
-      power.transferOwnership(controller.address);
-      await controller.setContracts(storage.address, nutz.address, power.address, pull.address);
+      const power = await initPower();
       // create contract and purchase tokens for 1 ether
       const ceiling = new BigNumber(1000);
       await controller.moveFloor(INFINITY);
       await controller.moveCeiling(ceiling);
-      
+
       await nutz.purchase({from: accounts[0], value: ONE_ETH });
 
       // initiate power pool
@@ -217,7 +222,7 @@ contract('Nutz', (accounts) => {
     //const token = await NutzMock.new(0, babz(12000), 12000, 15000);
     // purchase some tokens with ether
     await nutz.purchase({from: accounts[0], value: ONE_ETH });
-    
+
     const bal = await nutz.balanceOf.call(accounts[0]);
     // sell more tokens than issued by eth
     await nutz.sell(bal);
@@ -300,7 +305,7 @@ contract('Nutz', (accounts) => {
     } catch(error) {
       assertJump(error);
     }
-    
+
   });
 
   it('allocate_funds_to_beneficiary fails if allocating those funds would mean that the sale mechanism is no longer able to buy back all outstanding tokens',  async () => {
