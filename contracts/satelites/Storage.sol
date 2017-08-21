@@ -1,6 +1,6 @@
 pragma solidity 0.4.11;
 
-import './Ownable.sol';
+import '../Ownable.sol';
 
 contract Storage is Ownable {
     struct Crate {

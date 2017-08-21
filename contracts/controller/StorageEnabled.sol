@@ -1,6 +1,6 @@
 pragma solidity 0.4.11;
 
-import "./Storage.sol";
+import "../satelites/Storage.sol";
 
 contract StorageEnabled {
 

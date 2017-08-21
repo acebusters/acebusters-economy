@@ -1,7 +1,7 @@
 pragma solidity 0.4.11;
 
-import "./Power.sol";
-import "./Nutz.sol";
+import "../satelites/Power.sol";
+import "../satelites/Nutz.sol";
 import "./MarketEnabled.sol";
 
 contract PowerEnabled is MarketEnabled {

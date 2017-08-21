@@ -1,6 +1,6 @@
 pragma solidity 0.4.11;
 
-import "./PullPayment.sol";
+import "../satelites/PullPayment.sol";
 import "./NutzEnabled.sol";
 
 contract MarketEnabled is NutzEnabled {

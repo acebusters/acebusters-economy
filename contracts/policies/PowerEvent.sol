@@ -1,8 +1,8 @@
 pragma solidity 0.4.11;
 
-import './Controller.sol';
-import "./SafeMath.sol";
-import "./ERC20.sol";
+import '../controller/Controller.sol';
+import "../SafeMath.sol";
+import "../ERC20.sol";
 
 contract PowerEvent {
   using SafeMath for uint;

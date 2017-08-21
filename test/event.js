@@ -1,9 +1,9 @@
-const Nutz = artifacts.require('./Nutz.sol');
-const Power = artifacts.require('./Power.sol');
-const PullPayment = artifacts.require('./PullPayment.sol');
-const Storage = artifacts.require('./Storage.sol');
-const Controller = artifacts.require('./Controller.sol');
-const PowerEvent = artifacts.require('./PowerEvent.sol');
+const Nutz = artifacts.require('./satelites/Nutz.sol');
+const Power = artifacts.require('./satelites/Power.sol');
+const Storage = artifacts.require('./satelites/Storage.sol');
+const PullPayment = artifacts.require('./satelites/PullPayment.sol');
+const Controller = artifacts.require('./controller/Controller.sol');
+const PowerEvent = artifacts.require('./policies/PowerEvent.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
 const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';

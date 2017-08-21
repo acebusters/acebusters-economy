@@ -1,7 +1,7 @@
 pragma solidity 0.4.11;
 
-import './Controller.sol';
-import "./SafeMath.sol";
+import '../controller/Controller.sol';
+import "../SafeMath.sol";
 
 contract UpdateEvent {
   using SafeMath for uint;

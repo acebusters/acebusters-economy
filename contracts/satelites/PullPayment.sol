@@ -1,8 +1,8 @@
 pragma solidity 0.4.11;
 
 
-import './SafeMath.sol';
-import './Ownable.sol';
+import '../SafeMath.sol';
+import '../Ownable.sol';
 
 
 /**
@@ -55,7 +55,7 @@ contract PullPayment is Ownable {
       newDate = now.add(3 days);
     }
     spentToday = spentToday.add(msg.value);
-    payments[_dest] = Payment(payments[_dest].value.add(msg.value), now);
+    payments[_dest] = Payment(newValue, now);
   }
 
 
@@ -64,7 +64,7 @@ contract PullPayment is Ownable {
     uint256 amountWei = payments[untrustedRecipient].value;
 
     require(amountWei != 0);
-    require(now > payments[untrustedRecipient].date);
+    require(now >= payments[untrustedRecipient].date);
     require(this.balance >= amountWei);
 
     payments[untrustedRecipient].value = 0;
