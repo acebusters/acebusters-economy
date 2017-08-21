@@ -9,6 +9,9 @@ import "../controller/ControllerInterface.sol";
  * sold. It is based of the zeppelin token contract.
  */
 contract Nutz is Ownable, ERC20 {
+
+  event Purchase(address indexed purchaser, uint256 value);
+  event Sell(address indexed seller, uint256 value);
   
   string public name = "Acebusters Nutz";
   // acebusters units:
@@ -84,12 +87,14 @@ contract Nutz is Ownable, ERC20 {
   function transfer(address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
     if (_to == sellConstant) {
       ControllerInterface(owner).sell(msg.sender, _amountBabz);
+      Sell(msg.sender, _amountBabz);
     } else if (_to == powerUpContant) {
       ControllerInterface(owner).powerUp(msg.sender, msg.sender, _amountBabz);
+      Transfer(msg.sender, _to, _amountBabz);
     } else {
       ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
+      Transfer(msg.sender, _to, _amountBabz);
     }
-    Transfer(msg.sender, _to, _amountBabz);
     return true;
   }
 
@@ -120,12 +125,12 @@ contract Nutz is Ownable, ERC20 {
   function purchase() public payable {
     require(msg.value > 0);
     uint256 amountBabz = ControllerInterface(owner).purchase.value(msg.value)(msg.sender);
-    Transfer(sellConstant, msg.sender, amountBabz);
+    Purchase(msg.sender, amountBabz);
   }
 
   function sell(uint256 _amountBabz) public {
     ControllerInterface(owner).sell(msg.sender, _amountBabz);
-    Transfer(msg.sender, sellConstant, _amountBabz);
+    Sell(msg.sender, _amountBabz);
   }
 
   function powerUp(uint256 _amountBabz) public {
