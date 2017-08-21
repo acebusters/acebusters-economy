@@ -15,6 +15,10 @@ contract Controller is PowerEnabled {
     pullAddr = _pullAddr;
   }
 
+  function changeDailyLimit(uint256 _dailyLimit) public onlyAdmins {
+    PullPayment(pullAddr).changeDailyLimit(_dailyLimit);
+  }
+
   function kill(address _newController) public onlyAdmins whenPaused {
     if (powerAddr != 0x0) { Ownable(powerAddr).transferOwnership(msg.sender); }
     if (pullAddr != 0x0) { Ownable(pullAddr).transferOwnership(msg.sender); }

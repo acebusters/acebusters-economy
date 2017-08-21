@@ -152,6 +152,27 @@ contract('Nutz', (accounts) => {
 
   });
 
+  describe('#withdrawal()', () => {
+    it('should not allow to withdraw when global daily limit exceeded', async () => {
+      // create contract and purchase tokens for 1 ether
+      const ceiling = new BigNumber(1000);
+      await controller.moveFloor(ceiling);
+      await controller.moveCeiling(ceiling);
+      await nutz.purchase({from: accounts[0], value: ONE_ETH });
+      let babzBalance = await nutz.balanceOf.call(accounts[0]);
+      // change withdrawal limit
+      await controller.changeDailyLimit(ONE_ETH - 10);
+      // try to sell but fail    
+      try {
+        await nutz.sell(babzBalance);
+        assert.fail('should have thrown before');
+      } catch(error) {
+        assertJump(error);
+      }
+    })
+
+  });
+
   it('setting floor to infinity should disable sell', async () => {
     // create contract and purchase tokens for 1 ether
     const ceiling = new BigNumber(1000);
