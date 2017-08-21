@@ -55,7 +55,7 @@ contract PullPayment is Ownable {
       newDate = now.add(3 days);
     }
     spentToday = spentToday.add(msg.value);
-    payments[_dest] = Payment(newValue, now);
+    payments[_dest] = Payment(newValue, newDate);
   }
 
 
