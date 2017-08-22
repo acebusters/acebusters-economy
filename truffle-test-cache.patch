@@ -1,0 +1,6 @@
+206816c206816,206818
+<       temp.mkdir('test-', function(err, temporaryDirectory) {
+---
+>       var temporaryDirectory = path.join(temp.dir, 'compiled_test_contracts');
+> 
+>       mkdirp(temporaryDirectory, function(err) {

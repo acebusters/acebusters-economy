@@ -19,6 +19,11 @@ npm install
 npm run tests
 ```
 
+To avoid recompiling contracts all the time, consider patching truffle with supplied patch:
+```
+patch node_modules/truffle/build/cli.bundled.js truffle-test-cache.patch
+```
+
 ### code coverage
 
 ```
