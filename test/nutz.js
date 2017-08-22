@@ -2,7 +2,7 @@ const Nutz = artifacts.require('./satelites/Nutz.sol');
 const Power = artifacts.require('./satelites/Power.sol');
 const Storage = artifacts.require('./satelites/Storage.sol');
 const PullPayment = artifacts.require('./satelites/PullPayment.sol');
-const Controller = artifacts.require('./controller/Controller.sol');
+const MockController = artifacts.require('./helpers/MockController.sol');
 const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol');
 const assertJump = require('./helpers/assertJump');
 const BigNumber = require('bignumber.js');
@@ -23,7 +23,7 @@ contract('Nutz', (accounts) => {
     nutz = await Nutz.new();
     storage = await Storage.new();
     pull = await PullPayment.new();
-    controller = await Controller.new('0x00', pull.address, nutz.address, storage.address);
+    controller = await MockController.new('0x00', pull.address, nutz.address, storage.address);
     nutz.transferOwnership(controller.address);
     storage.transferOwnership(controller.address);
     pull.transferOwnership(controller.address);
@@ -237,16 +237,21 @@ contract('Nutz', (accounts) => {
   });
 
   it('should adjust getFloor automatically when active supply inflated', async () => {
-    // create token contract, and issue some tokens that are not backed by ETH
-    //const token = await NutzMock.new(0, babz(12000), 12000, 15000);
-    // purchase some tokens with ether
-    await nutz.purchase(0, {from: accounts[0], value: ONE_ETH });
+    // set initial sell price to 1 NTZ
+    const initialFloorPrice = new BigNumber(1);
+    await controller.moveFloor(initialFloorPrice);
 
-    const bal = await nutz.balanceOf.call(accounts[0]);
-    // sell more tokens than issued by eth
-    await nutz.sell(0, bal);
-    const reserve = web3.eth.getBalance(controller.address);
-    assert.equal(reserve.toNumber(), 0, 'reserve has not been emptied');
+    // purchase 1 NTZ
+    await controller.moveCeiling(1);
+    await nutz.purchase(1, { from: accounts[0], value: ONE_ETH });
+
+    assert.equal((await controller.floor()).toNumber(), initialFloorPrice.toNumber(), "Floor price after purchase");
+
+    // inflate NTZ supply by adding 1 NTZ not covered by ETH. Active supply should become 2 NTZ
+    await controller.inflateActiveSupply(babz(1));
+
+    // since active supply was increased by 2, we expect floor price to adjust by 2 as well
+    assert.equal((await controller.floor()).toNumber(), initialFloorPrice.toNumber() * 2, "Floor price after inflation");
   });
 
   it('allocate_funds_to_beneficiary and claim_revenue', async () => {
@@ -389,7 +394,7 @@ contract('Nutz', (accounts) => {
     assert.equal(babzBalBefore.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
     // upgrade controller contract
     await controller.pause();
-    const newController = await Controller.new('0x00', pull.address, nutz.address, storage.address);
+    const newController = await MockController.new('0x00', pull.address, nutz.address, storage.address);
     await controller.kill(newController.address);
     nutz.transferOwnership(newController.address);
     storage.transferOwnership(newController.address);
