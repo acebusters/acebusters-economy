@@ -5,26 +5,27 @@ import "./NutzEnabled.sol";
 
 contract MarketEnabled is NutzEnabled {
 
+  uint256 constant INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
   // address of the pull payemnt satelite
   address public pullAddr;
-
-  function MarketEnabled(address _pullAddr, address _storageAddr, address _nutzAddr) 
-    NutzEnabled(_nutzAddr, _storageAddr) {
-    pullAddr = _pullAddr;
-  }
-
-  uint256 internal INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
   // the Token sale mechanism parameters:
   // purchasePrice is the number of NTZ received for purchase with 1 ETH
   uint256 internal purchasePrice;
 
-  function ceiling() constant returns (uint256) {
-    return purchasePrice;
-  }
   // floor is the number of NTZ needed, to receive 1 ETH in sell
   uint256 internal salePrice;
 
+  function MarketEnabled(address _pullAddr, address _storageAddr, address _nutzAddr)
+    NutzEnabled(_nutzAddr, _storageAddr) {
+    pullAddr = _pullAddr;
+  }
+
+
+  function ceiling() constant returns (uint256) {
+    return purchasePrice;
+  }
 
   // returns either the salePrice, or if reserve does not suffice
   // for active supply, returns maxFloor
@@ -41,7 +42,7 @@ contract MarketEnabled is NutzEnabled {
     require(_newPurchasePrice <= salePrice);
     purchasePrice = _newPurchasePrice;
   }
-  
+
   function moveFloor(uint256 _newSalePrice) public onlyAdmins {
     require(_newSalePrice >= purchasePrice);
     // moveFloor fails if the administrator tries to push the floor so low
