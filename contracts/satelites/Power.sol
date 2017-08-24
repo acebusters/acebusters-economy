@@ -48,7 +48,7 @@ contract Power is Ownable, ERC20Basic {
     // make Power not transferable
     require(_to == 0x0);
     ControllerInterface(owner).createDownRequest(msg.sender, _amountPower);
-    Transfer(msg.sender, owner, _amountPower);
+    Transfer(msg.sender, 0x0, _amountPower);
     return true;
   }
 
