@@ -45,7 +45,7 @@ contract('PowerEvent', (accounts) => {
     await controller.addAdmin(event1.address);
     await event1.startCollection();
     // event #1 - buyin
-    await nutz.purchase({from: FOUNDERS, value: WEI_AMOUNT });
+    await nutz.purchase(1200000000, {from: FOUNDERS, value: WEI_AMOUNT });
     // event #1 - burn
     await event1.stopCollection();
     await event1.completeClosed();
@@ -69,7 +69,7 @@ contract('PowerEvent', (accounts) => {
     // event #2 - buy in
     await controller.addAdmin(event2.address);
     await event2.startCollection();
-    await nutz.purchase({from: INVESTORS, value: hardCap2 });
+    await nutz.purchase(30000, {from: INVESTORS, value: hardCap2 });
     // event #2 - burn
     await event2.stopCollection();
     await event2.completeClosed();

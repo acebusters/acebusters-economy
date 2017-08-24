@@ -17,7 +17,7 @@ contract PullPayment is Ownable {
     uint256 date;   // 
   }
 
-  uint public dailyLimit = 1000000000000000000001;  // 1 ETH
+  uint public dailyLimit = 1000000000000000000000;  // 1 ETH
   uint public lastDay;
   uint public spentToday;
 
@@ -83,7 +83,8 @@ contract PullPayment is Ownable {
       lastDay = now;
       spentToday = 0;
     }
-    if (spentToday.add(amount) > dailyLimit || spentToday.add(amount) < spentToday) {
+    // not using safe math because we don't want to throw;
+    if (spentToday + amount > dailyLimit || spentToday + amount < spentToday) {
       return false;
     }
     return true;

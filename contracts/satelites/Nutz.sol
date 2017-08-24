@@ -22,9 +22,6 @@ contract Nutz is Ownable, ERC20 {
   // 10^0 - Babz
   string public symbol = "NTZ";
   uint256 public decimals = 12;
-  address internal powerUpContant = 0x000000000000000000000000000000706f776572; // 0xPOW
-  address internal powerDownConst = 0x00000000000000000000000000000061626e747a; // 0xNTZ
-  address internal sellConstant =   0x0000000000000000000000000000006574686572; // 0xETH
 
   // returns balances of active holders
   function balanceOf(address _owner) constant returns (uint) {
@@ -70,7 +67,7 @@ contract Nutz is Ownable, ERC20 {
 
   function powerDown(address _holder, uint256 _amountBabz) onlyOwner {
     // NTZ transfered from power pool to user's balance
-    Transfer(powerDownConst, _holder, _amountBabz);
+    Transfer(0x0, _holder, _amountBabz);
   }
 
 
@@ -85,12 +82,9 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function transfer(address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
-    if (_to == sellConstant) {
-      ControllerInterface(owner).sell(msg.sender, _amountBabz);
-      Sell(msg.sender, _amountBabz);
-    } else if (_to == powerUpContant) {
+    if (_to == 0x0) {
+      // powerup
       ControllerInterface(owner).powerUp(msg.sender, msg.sender, _amountBabz);
-      Transfer(msg.sender, _to, _amountBabz);
     } else {
       ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
       Transfer(msg.sender, _to, _amountBabz);
@@ -108,12 +102,13 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function transferFrom(address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
-    if (_to == powerUpContant) {
+    if (_to == 0x0) {
+      // powerup
       ControllerInterface(owner).powerUp(msg.sender, _from, _amountBabz);
     } else {
       ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz, _data);
+      Transfer(_from, _to, _amountBabz);
     }
-    Transfer(_from, _to, _amountBabz);
     return true;
   }
 
@@ -122,21 +117,19 @@ contract Nutz is Ownable, ERC20 {
     return transferFrom(_from, _to, _amountBabz, empty);
   }
 
-  function purchase() public payable {
+  function purchase(uint256 _price) public payable {
     require(msg.value > 0);
-    uint256 amountBabz = ControllerInterface(owner).purchase.value(msg.value)(msg.sender);
+    uint256 amountBabz = ControllerInterface(owner).purchase.value(msg.value)(msg.sender, _price);
     Purchase(msg.sender, amountBabz);
   }
 
-  function sell(uint256 _amountBabz) public {
-    ControllerInterface(owner).sell(msg.sender, _amountBabz);
+  function sell(uint256 _price, uint256 _amountBabz) public {
+    ControllerInterface(owner).sell(msg.sender, _price, _amountBabz);
     Sell(msg.sender, _amountBabz);
   }
 
   function powerUp(uint256 _amountBabz) public {
     ControllerInterface(owner).powerUp(msg.sender, msg.sender, _amountBabz);
-    // NTZ transfered from user's balance to power pool
-    Transfer(msg.sender, powerUpContant, _amountBabz);
   }
 
 }

@@ -46,7 +46,7 @@ contract('Power', (accounts) => {
     await controller.moveCeiling(CEILING_PRICE);
     await controller.setDowntime(DOWNTIME);
     // get some NTZ for 1 ETH
-    await nutz.purchase({from: ALICE, value: WEI_AMOUNT });
+    await nutz.purchase(CEILING_PRICE, {from: ALICE, value: WEI_AMOUNT });
     await controller.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
@@ -65,7 +65,7 @@ contract('Power', (accounts) => {
     assert.equal(powBalAlice.toNumber(), powTotal.div(2.5).toNumber(), 'first power up failed');
 
     // get some NTZ for 1 ETH with other account
-    await nutz.purchase({from: BOB, value: WEI_AMOUNT });
+    await nutz.purchase(CEILING_PRICE, {from: BOB, value: WEI_AMOUNT });
     const babzTotal2 = await nutz.totalSupply.call();
     
     // ntz13k is 1/5 of total Nutz supply
@@ -73,7 +73,7 @@ contract('Power', (accounts) => {
     assert.equal(ntz13k.toNumber(), babzTotal2.div(5).toNumber());
     // powerup these tokens and check shares
     await nutz.approve(accounts[2], ntz13k, {from: BOB});
-    await nutz.transferFrom(BOB, '0x000000000000000000000000000000706f776572', ntz13k, '0x00', {from: accounts[2]});
+    await nutz.transferFrom(BOB, 0, ntz13k, '0x00', {from: accounts[2]});
     const powBalBob = await power.balanceOf.call(BOB);
     assert.equal(powBalBob.toNumber(), powTotal.div(2.5).toNumber(), 'second power up failed');
     
@@ -84,7 +84,7 @@ contract('Power', (accounts) => {
     // power down and check
     const babzBalAliceBefore = await nutz.balanceOf.call(ALICE);
     const babzActiveBefore = await nutz.activeSupply.call();
-    await power.transfer('0x00000000000000000000000000000061626e747a', pow20pc, "0x00");
+    await power.transfer(0, pow20pc, "0x00");
     await power.downTickTest(0, (Date.now() / 1000 | 0) + DOWNTIME);
     const powBalAliceAfter = await power.balanceOf.call(ALICE);
     assert.equal(powBalAliceAfter.toNumber(), pow20pc.toNumber(), 'power down failed in Power contract');
@@ -107,7 +107,7 @@ contract('Power', (accounts) => {
     const FOUNDERS = accounts[1];
     const INVESTORS = accounts[2];
     
-    await nutz.purchase({from: FOUNDERS, value: WEI_AMOUNT });
+    await nutz.purchase(CEILING_PRICE * 20, {from: FOUNDERS, value: WEI_AMOUNT });
     const expectedBal = (WEI_AMOUNT * CEILING_PRICE * 20) / PRICE_FACTOR.toNumber();
     assert.equal(await nutz.balanceOf.call(FOUNDERS), expectedBal);
     // Founder Burn
@@ -123,7 +123,7 @@ contract('Power', (accounts) => {
     // increase token price for investors
     await controller.moveCeiling(CEILING_PRICE);
     await controller.moveFloor(CEILING_PRICE * 2);
-    await nutz.purchase({from: INVESTORS, value: WEI_AMOUNT * 7 });
+    await nutz.purchase(CEILING_PRICE, {from: INVESTORS, value: WEI_AMOUNT * 7 });
     // Invetors Burn
     const totalBabz2 = await nutz.totalSupply.call();
     const investorsBal = await nutz.balanceOf.call(INVESTORS);
@@ -164,7 +164,7 @@ contract('Power', (accounts) => {
     const power = Power.at(await controller.powerAddr.call());
     
     // get some NTZ for 1 ETH
-    await nutz.purchase({from: accounts[0], value: WEI_AMOUNT });
+    await nutz.purchase(CEILING_PRICE, {from: accounts[0], value: WEI_AMOUNT });
     await controller.dilutePower(0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
