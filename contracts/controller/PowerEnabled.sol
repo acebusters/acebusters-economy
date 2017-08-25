@@ -101,6 +101,7 @@ contract PowerEnabled is MarketEnabled {
     _setActiveSupply(activeSupply().sub(_amountBabz));
     _setBabzBalanceOf(_from, babzBalanceOf(_from).sub(_amountBabz));
     _setPowerPool(powerPool().add(_amountBabz));
+    Power(powerAddr).powerUp(_from, amountPow);
   }
 
 

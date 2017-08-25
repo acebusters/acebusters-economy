@@ -45,7 +45,7 @@ contract('Nutz', (accounts) => {
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
     // purchase some tokens with ether
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     // check balance, supply and reserve
     const babzBalance = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalance.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
@@ -62,7 +62,7 @@ contract('Nutz', (accounts) => {
     await controller.moveCeiling(ceiling);
     // purchase some tokens with ether
     try {
-      await nutz.purchase({from: accounts[0], value: 0 });
+      await nutz.purchase(ceiling, {from: accounts[0], value: 0 });
       assert.fail('should have thrown before');
     } catch(error) {
       assertJump(error);
@@ -74,11 +74,11 @@ contract('Nutz', (accounts) => {
     const ceiling = new BigNumber(1000);
     await controller.moveFloor(ceiling);
     await controller.moveCeiling(ceiling);
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     let babzBalance = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalance.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'token wasn\'t issued to account');
     // sell half of the tokens
-    await nutz.sell(babzBalance.div(2));
+    await nutz.sell(ceiling, babzBalance.div(2));
     // check balance, supply
     let newBabzBal = await nutz.balanceOf.call(accounts[0]);
     assert.equal(newBabzBal.toNumber(), babzBalance.div(2).toNumber(), 'token wasn\'t deducted by sell');
@@ -105,7 +105,7 @@ contract('Nutz', (accounts) => {
     await controller.moveCeiling(ceiling);
 
 
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
 
     // initiate power pool
     await controller.dilutePower(0);
@@ -118,7 +118,7 @@ contract('Nutz', (accounts) => {
 
     const powerPoolBefore = await controller.powerPool.call();
     // sell half of active supply
-    await nutz.sell(babzBalance.div(4));
+    await nutz.sell(ceiling, babzBalance.div(4));
 
     // check size of power pool after sell
     const powerPoolAfter = await controller.powerPool.call();
@@ -134,7 +134,7 @@ contract('Nutz', (accounts) => {
       await controller.moveFloor(INFINITY);
       await controller.moveCeiling(ceiling);
 
-      await nutz.purchase({from: accounts[0], value: ONE_ETH });
+      await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
 
       // initiate power pool
       await controller.dilutePower(0);
@@ -158,17 +158,15 @@ contract('Nutz', (accounts) => {
       const ceiling = new BigNumber(1000);
       await controller.moveFloor(ceiling);
       await controller.moveCeiling(ceiling);
-      await nutz.purchase({from: accounts[0], value: ONE_ETH });
+      await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
       let babzBalance = await nutz.balanceOf.call(accounts[0]);
       // change withdrawal limit
-      await controller.changeDailyLimit(ONE_ETH - 10);
-      // try to sell but fail    
-      try {
-        await nutz.sell(babzBalance);
-        assert.fail('should have thrown before');
-      } catch(error) {
-        assertJump(error);
-      }
+      await controller.changeDailyLimit(ONE_ETH / 2);
+      await nutz.sell(ceiling, babzBalance);
+      // expect delayed withdrawal
+      const payoutDate = await pull.paymentOf.call(accounts[0]);
+      // check payout date more than 2 days in the future
+      assert((Date.now() / 1000 | 0) + (3600 * 48) < payoutDate[1].toNumber(), 'payout not delayed');
     })
 
   });
@@ -179,14 +177,14 @@ contract('Nutz', (accounts) => {
     await controller.moveFloor(ceiling);
     await controller.moveCeiling(ceiling);
 
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     let babzBalance = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalance, babz(1000).toNumber(), 'token wasn\'t issued to account');
     // set floor to infinity
     await controller.moveFloor(INFINITY);
     // try sell half of the tokens
     try {
-      await nutz.sell(babzBalance.div(2));
+      await nutz.sell(INFINITY, babzBalance.div(2));
     } catch(error) {
       return assertJump(error);
     }
@@ -199,11 +197,11 @@ contract('Nutz', (accounts) => {
     await controller.moveFloor(ceiling);
     await controller.moveCeiling(ceiling);
 
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     let babzBalance = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalance, babz(1000).toNumber(), 'token wasn\'t issued to account');
     // try sell half of the tokens
-    await nutz.sell(babzBalance.div(2));
+    await nutz.sell(ceiling, babzBalance.div(2));
     // set floor to infinity
     await controller.moveFloor(INFINITY);
     try {
@@ -218,7 +216,7 @@ contract('Nutz', (accounts) => {
     let receiver = await ERC223ReceiverMock.new();
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(1500);
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(1500, {from: accounts[0], value: ONE_ETH });
     await receiver.forward(nutz.address, ONE_ETH);
     const isCalled = await receiver.called.call();
     assert(isCalled, 'erc223 interface has not been invoked on purchase');
@@ -227,7 +225,7 @@ contract('Nutz', (accounts) => {
   it('should allow to disable transfer to non-contract accounts.', async () => {
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(1500);
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(1500, {from: accounts[0], value: ONE_ETH });
     const bal = await nutz.balanceOf.call(accounts[0]);
     await controller.setOnlyContractHolders(true);
     try {
@@ -242,11 +240,11 @@ contract('Nutz', (accounts) => {
     // create token contract, and issue some tokens that are not backed by ETH
     //const token = await NutzMock.new(0, babz(12000), 12000, 15000);
     // purchase some tokens with ether
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(0, {from: accounts[0], value: ONE_ETH });
 
     const bal = await nutz.balanceOf.call(accounts[0]);
     // sell more tokens than issued by eth
-    await nutz.sell(bal);
+    await nutz.sell(0, bal);
     const reserve = web3.eth.getBalance(controller.address);
     assert.equal(reserve.toNumber(), 0, 'reserve has not been emptied');
   });
@@ -257,7 +255,7 @@ contract('Nutz', (accounts) => {
     await controller.moveFloor(ceiling.mul(2));
     await controller.moveCeiling(ceiling);
     // purchase NTZ for 1 ETH
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     const floor = await controller.floor.call();
     const reserveWei = web3.eth.getBalance(controller.address);
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'reserve incorrect');
@@ -280,7 +278,7 @@ contract('Nutz', (accounts) => {
     let ceiling = new BigNumber(100);
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     const babzBalanceBefore = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalanceBefore.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'token wasn\'t issued to account');
     await controller.moveFloor(INFINITY);
@@ -291,7 +289,7 @@ contract('Nutz', (accounts) => {
     assert.equal(ceiling.toNumber(), 0, 'setting ceiling failed');
     // try purchasing some tokens with ether
     try {
-      await nutz.purchase({from: accounts[0], value: ONE_ETH });
+      await nutz.purchase(0, {from: accounts[0], value: ONE_ETH });
       assert.fail('should have thrown before');
     } catch(error) {
       assertJump(error);
@@ -310,7 +308,7 @@ contract('Nutz', (accounts) => {
     let ceiling = new BigNumber(4000);
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     let supplyBabz = await nutz.activeSupply.call(accounts[0]);
     const reserveWei = web3.eth.getBalance(controller.address);
     assert.equal(supplyBabz.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'amount wasn\'t issued to account');
@@ -335,7 +333,7 @@ contract('Nutz', (accounts) => {
     await controller.moveFloor(2000);
     await controller.moveCeiling(ceiling);
 
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     const floor = await controller.floor.call();
     const reserveWei = web3.eth.getBalance(controller.address);
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'reserve incorrect');
@@ -357,7 +355,7 @@ contract('Nutz', (accounts) => {
     const ceiling = new BigNumber(100);
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     let babzBalance = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalance.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'amount wasn\'t issued to account');
     // transfer token to other account
@@ -385,7 +383,7 @@ contract('Nutz', (accounts) => {
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(ceiling);
     // purchase some tokens with ether
-    await nutz.purchase({from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     // check balance, supply and reserve
     const babzBalBefore = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalBefore.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');

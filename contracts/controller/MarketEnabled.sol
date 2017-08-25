@@ -52,9 +52,10 @@ contract MarketEnabled is NutzEnabled {
     salePrice = _newSalePrice;
   }
 
-  function purchase(address _sender) public onlyNutz payable whenNotPaused returns (uint256) {
+  function purchase(address _sender, uint256 _price) public onlyNutz payable whenNotPaused returns (uint256) {
     // disable purchases if purchasePrice set to 0
     require(purchasePrice > 0);
+    require(_price == purchasePrice);
 
     uint256 amountBabz = purchasePrice.mul(msg.value).div(1000000); // 1,000,000 WEI, used as price factor
     // avoid deposits that issue nothing
@@ -76,10 +77,11 @@ contract MarketEnabled is NutzEnabled {
     return amountBabz;
   }
 
-  function sell(address _from, uint256 _amountBabz) public onlyNutz whenNotPaused {
+  function sell(address _from, uint256 _price, uint256 _amountBabz) public onlyNutz whenNotPaused {
     uint256 effectiveFloor = floor();
     uint256 INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     require(effectiveFloor != INFINITY);
+    require(_price == effectiveFloor);
 
     uint256 amountWei = _amountBabz.mul(1000000).div(effectiveFloor);  // 1,000,000 WEI, used as price factor
     // make sure power pool shrinks proportional to economy

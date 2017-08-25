@@ -11,7 +11,6 @@ contract Power is Ownable, ERC20Basic {
   string public name = "Acebusters Power";
   string public symbol = "ABP";
   uint256 public decimals = 12;
-  address internal powerDownConst = 0x00000000000000000000000000000061626e747a; // 0xNTZ
                                     
 
   function balanceOf(address _holder) constant returns (uint256 balance) {
@@ -31,10 +30,14 @@ contract Power is Ownable, ERC20Basic {
   // ########### ADMIN FUNCTIONS ################
   // ############################################
 
-  function slashPower(address _holder, uint256 _value, bytes32 _data) onlyOwner {
+  function slashPower(address _holder, uint256 _value, bytes32 _data) public onlyOwner {
     Slashing(_holder, _value, _data);
   }
 
+  function powerUp(address _holder, uint256 _value) public onlyOwner {
+    // NTZ transfered from user's balance to power pool
+    Transfer(0x0, _holder, _value);
+  }
 
   // ############################################
   // ########### PUBLIC FUNCTIONS ###############
@@ -43,9 +46,9 @@ contract Power is Ownable, ERC20Basic {
   // registers a powerdown request
   function transfer(address _to, uint256 _amountPower) public returns (bool success) {
     // make Power not transferable
-    require(_to == powerDownConst);
+    require(_to == 0x0);
     ControllerInterface(owner).createDownRequest(msg.sender, _amountPower);
-    Transfer(msg.sender, owner, _amountPower);
+    Transfer(msg.sender, 0x0, _amountPower);
     return true;
   }
 
