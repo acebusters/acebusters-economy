@@ -51,6 +51,20 @@ contract PowerEvent {
     _;
   }
 
+  function tick() public {
+    if (state == EventState.Waiting) {
+      startCollection();
+    } else if (state == EventState.Collecting) {
+      stopCollection();
+    } else if (state == EventState.Failed) {
+      completeFailed();
+    } else if (state == EventState.Closed) {
+      completeClosed();
+    } else {
+      throw;
+    }
+  }
+
   function startCollection() isState(EventState.Waiting) {
     // check time
     require(now > startTime);
