@@ -5,30 +5,33 @@ import "./NutzEnabled.sol";
 
 contract MarketEnabled is NutzEnabled {
 
+  uint256 constant INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
   // address of the pull payemnt satelite
   address public pullAddr;
-
-  function MarketEnabled(address _pullAddr, address _storageAddr, address _nutzAddr) 
-    NutzEnabled(_nutzAddr, _storageAddr) {
-    pullAddr = _pullAddr;
-  }
 
   // the Token sale mechanism parameters:
   // purchasePrice is the number of NTZ received for purchase with 1 ETH
   uint256 internal purchasePrice;
 
-  function ceiling() constant returns (uint256) {
-    return purchasePrice;
-  }
   // floor is the number of NTZ needed, to receive 1 ETH in sell
   uint256 internal salePrice;
 
+  function MarketEnabled(address _pullAddr, address _storageAddr, address _nutzAddr)
+    NutzEnabled(_nutzAddr, _storageAddr) {
+    pullAddr = _pullAddr;
+  }
+
+
+  function ceiling() constant returns (uint256) {
+    return purchasePrice;
+  }
 
   // returns either the salePrice, or if reserve does not suffice
   // for active supply, returns maxFloor
   function floor() constant returns (uint256) {
     if (this.balance == 0) {
-      return 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff; // infinity
+      return INFINITY;
     }
     uint256 maxFloor = activeSupply().mul(1000000).div(this.balance); // 1,000,000 WEI, used as price factor
     // return max of maxFloor or salePrice
@@ -39,13 +42,12 @@ contract MarketEnabled is NutzEnabled {
     require(_newPurchasePrice <= salePrice);
     purchasePrice = _newPurchasePrice;
   }
-  
+
   function moveFloor(uint256 _newSalePrice) public onlyAdmins {
     require(_newSalePrice >= purchasePrice);
     // moveFloor fails if the administrator tries to push the floor so low
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
-    uint256 INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     if (_newSalePrice < INFINITY) {
       require(this.balance >= activeSupply().mul(1000000).div(_newSalePrice)); // 1,000,000 WEI, used as price factor
     }
@@ -79,11 +81,11 @@ contract MarketEnabled is NutzEnabled {
 
   function sell(address _from, uint256 _price, uint256 _amountBabz) public onlyNutz whenNotPaused {
     uint256 effectiveFloor = floor();
-    uint256 INFINITY = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     require(effectiveFloor != INFINITY);
     require(_price == effectiveFloor);
 
     uint256 amountWei = _amountBabz.mul(1000000).div(effectiveFloor);  // 1,000,000 WEI, used as price factor
+    require(amountWei > 0);
     // make sure power pool shrinks proportional to economy
     uint256 powPool = powerPool();
     uint256 activeSup = activeSupply();
