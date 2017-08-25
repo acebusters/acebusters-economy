@@ -85,6 +85,7 @@ contract MarketEnabled is NutzEnabled {
     require(_price == effectiveFloor);
 
     uint256 amountWei = _amountBabz.mul(1000000).div(effectiveFloor);  // 1,000,000 WEI, used as price factor
+    require(amountWei > 0);
     // make sure power pool shrinks proportional to economy
     uint256 powPool = powerPool();
     uint256 activeSup = activeSupply();

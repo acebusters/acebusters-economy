@@ -112,4 +112,19 @@ contract('MarketEnabled', (accounts) => {
 
   });
 
+  describe('#sell', () => {
+    it(`should not allow to sell if the price is unreasonably high`, async () => {
+      const bigPrice = new BigNumber(10).pow(50);
+      await market.moveFloor(bigPrice);
+      await market.moveCeiling(3000);
+      await nutz.purchase(3000, { from: accounts[0], value: ONE_ETH });
+      try {
+        await nutz.sell(bigPrice, 3000, { from: accounts[0] });
+        assert.fail('should have thrown before');
+      } catch(error) {
+        assertJump(error);
+      }
+    });
+  });
+
 });

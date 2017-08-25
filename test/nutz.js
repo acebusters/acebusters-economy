@@ -191,27 +191,6 @@ contract('Nutz', (accounts) => {
     assert.fail('should have thrown before');
   });
 
-  it('setting floor to infinity should disable claim', async () => {
-    // create contract and purchase tokens for 1 ether
-    const ceiling = new BigNumber(1000);
-    await controller.moveFloor(ceiling);
-    await controller.moveCeiling(ceiling);
-
-    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
-    let babzBalance = await nutz.balanceOf.call(accounts[0]);
-    assert.equal(babzBalance, babz(1000).toNumber(), 'token wasn\'t issued to account');
-    // try sell half of the tokens
-    await nutz.sell(ceiling, babzBalance.div(2));
-    // set floor to infinity
-    await controller.moveFloor(INFINITY);
-    try {
-      await pull.withdraw({ gasPrice: 0 });
-      assert.fail('should have thrown before');
-    } catch(error) {
-      return assertJump(error);
-    }
-  });
-
   it('should call erc223 when purchase', async () => {
     let receiver = await ERC223ReceiverMock.new();
     await controller.moveFloor(1500);
