@@ -214,10 +214,12 @@ contract('Nutz', (accounts) => {
 
   it('should call erc223 when purchase', async () => {
     let receiver = await ERC223ReceiverMock.new();
-    await controller.moveFloor(INFINITY);
+    await controller.moveFloor(1500);
     await controller.moveCeiling(1500);
-    await nutz.purchase(1500, {from: accounts[0], value: ONE_ETH });
-    await receiver.forward(nutz.address, ONE_ETH);
+    //await nutz.purchase(1500, {from: accounts[0], value: ONE_ETH });
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: receiver.address, value: ONE_ETH });
+    await web3.eth.transactionMined(txHash);
+    await receiver.forward(nutz.address, ONE_ETH, 1500);
     const isCalled = await receiver.called.call();
     assert(isCalled, 'erc223 interface has not been invoked on purchase');
   });

@@ -45,7 +45,7 @@ contract('MarketEnabled', (accounts) => {
 
       it('should change active supply', async() => {
         // purchase some tokens with 1 ether
-        await nutz.purchase({ from: accounts[0], value: ONE_ETH });
+        await nutz.purchase(sellPrice, { from: accounts[0], value: ONE_ETH });
 
         const supplyBabz = await nutz.activeSupply.call();
         assert.equal(supplyBabz.toNumber(), babz(expectedNumberOfNtz).toNumber(), 'active supply should include newly minted NTZ');
@@ -53,7 +53,7 @@ contract('MarketEnabled', (accounts) => {
 
       it('should not change purchase price', async() => {
         // purchase some tokens with 1 ether
-        await nutz.purchase({ from: accounts[0], value: ONE_ETH });
+        await nutz.purchase(sellPrice, { from: accounts[0], value: ONE_ETH });
 
         // we should be able to buy back issued NTZ by the same price
         const purchasePrice = await market.floor();
@@ -62,7 +62,7 @@ contract('MarketEnabled', (accounts) => {
 
       it('should sent ETH to the contract', async() => {
         // purchase some tokens with 1 ether
-        await nutz.purchase({ from: accounts[0], value: ONE_ETH });
+        await nutz.purchase(sellPrice, { from: accounts[0], value: ONE_ETH });
 
         const reserveWei = web3.eth.getBalance(market.address);
         assert.equal(reserveWei.toNumber(), ONE_ETH, '1 ETH should be sent to contract');
@@ -70,7 +70,7 @@ contract('MarketEnabled', (accounts) => {
 
       it('should add NTZ to the balance', async() => {
         // purchase tokens with 1 ether
-        await nutz.purchase({ from: accounts[0], value: ONE_ETH });
+        await nutz.purchase(sellPrice, { from: accounts[0], value: ONE_ETH });
 
         const balanceBabz = await nutz.balanceOf.call(accounts[0]);
         assert.equal(balanceBabz.toNumber(), babz(expectedNumberOfNtz).toNumber(), 'Purchased NTZ amount');
@@ -89,7 +89,7 @@ contract('MarketEnabled', (accounts) => {
 
       it(`should buy ${scenarioSpec.expectedNtz} NTZ for ${eth(scenarioSpec.wei)} ETH at the price ${scenarioSpec.price} NTZ/ETH`, async () => {
         await setSellPrice(scenarioSpec.price);
-        await nutz.purchase({ from: accounts[0], value: scenarioSpec.wei });
+        await nutz.purchase(scenarioSpec.price, { from: accounts[0], value: scenarioSpec.wei });
 
         const balanceBabz = await nutz.balanceOf.call(accounts[0]);
         assert.equal(ntz(balanceBabz).toNumber(), scenarioSpec.expectedNtz, 'Purchased NTZ amount');
@@ -103,7 +103,7 @@ contract('MarketEnabled', (accounts) => {
 
       try {
         // try to buy tokens with amount of ether one wei short from enough to buy just 1 babz
-        await nutz.purchase({ from: accounts[0], value: babzCostWei - 1 });
+        await nutz.purchase(1, { from: accounts[0], value: babzCostWei - 1 });
         assert.fail('should have thrown before');
       } catch(error) {
         assertJump(error);

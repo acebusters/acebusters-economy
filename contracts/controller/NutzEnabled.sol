@@ -17,7 +17,7 @@ contract NutzEnabled is Pausable, StorageEnabled {
     _;
   }
 
-  function NutzEnabled(address _nutzAddr, address _storageAddr) 
+  function NutzEnabled(address _nutzAddr, address _storageAddr)
     StorageEnabled(_storageAddr) {
     nutzAddr = _nutzAddr;
   }
