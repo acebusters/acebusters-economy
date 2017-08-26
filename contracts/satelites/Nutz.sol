@@ -1,7 +1,7 @@
 pragma solidity 0.4.11;
 
 import "../ERC20.sol";
-import "../Ownable.sol";
+import "../ownership/Ownable.sol";
 import "../controller/ControllerInterface.sol";
 
 /**
