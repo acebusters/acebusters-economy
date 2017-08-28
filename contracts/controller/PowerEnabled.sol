@@ -151,9 +151,6 @@ contract PowerEnabled is MarketEnabled {
     downs[pos] = DownRequest(_owner, _amountPower, _amountPower, now);
   }
 
-
-  event Error(uint256 value);
-
   // executes a powerdown request
   function downTick(uint256 _pos, uint256 _now) public onlyPower whenNotPaused {
     uint256 amountPow = vestedDown(_pos, _now);

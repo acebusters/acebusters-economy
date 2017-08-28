@@ -43,12 +43,12 @@ contract('PowerEvent', (accounts) => {
     const milestoneShares = [];
     const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
     await controller.addAdmin(event1.address);
-    await event1.startCollection();
+    await event1.tick();
     // event #1 - buyin
     await nutz.purchase(1200000000, {from: FOUNDERS, value: WEI_AMOUNT });
     // event #1 - burn
-    await event1.stopCollection();
-    await event1.completeClosed();
+    await event1.tick();
+    await event1.tick();
     // event #1 power up
     await nutz.powerUp(babz(1200000), { from: FOUNDERS });
     const totalPow1 = await power.totalSupply.call();
@@ -88,5 +88,7 @@ contract('PowerEvent', (accounts) => {
     assert.equal(founderPow.toNumber(), totalPow.mul(0.7).toNumber());
     assert.equal(investorsPow.toNumber(), totalPow.mul(0.3).toNumber());
   });
+
+  it('should allow to execute event that fails');
 
 });
