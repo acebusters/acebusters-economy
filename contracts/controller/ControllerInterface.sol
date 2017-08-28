@@ -2,6 +2,10 @@ pragma solidity 0.4.11;
 
 contract ControllerInterface {
 
+
+  // State Variables
+  bool public paused;
+
   // Nutz functions
   function babzBalanceOf(address _owner) constant returns (uint256);
   function activeSupply() constant returns (uint256);
@@ -13,11 +17,11 @@ contract ControllerInterface {
   function approve(address _owner, address _spender, uint256 _amountBabz) public;
   function transfer(address _from, address _to, uint256 _amountBabz, bytes _data) public;
   function transferFrom(address _sender, address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool);
-  
+
   // Market functions
   function floor() constant returns (uint256);
   function ceiling() constant returns (uint256);
-  
+
   function purchase(address _sender, uint256 _price) public payable returns (uint256);
   function sell(address _from, uint256 _price, uint256 _amountBabz) public;
 
@@ -26,7 +30,7 @@ contract ControllerInterface {
   function outstandingPower() constant returns (uint256);
   function authorizedPower() constant returns (uint256);
   function powerTotalSupply() constant returns (uint256);
-  
+
   function powerUp(address _sender, address _from, uint256 _amountBabz) public;
   function downTick(uint256 _pos, uint256 _now) public;
   function createDownRequest(address _owner, uint256 _amountPower) public;

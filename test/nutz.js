@@ -97,6 +97,40 @@ contract('Nutz', (accounts) => {
     assert.equal(after - before, allocationWei.toNumber(), 'allocation wasn\'t payed out.');
   });
 
+  it('should prohibit sell if controller paused', async () => {
+    // create contract and purchase tokens for 1 ether
+    const ceiling = new BigNumber(1000);
+    await controller.moveFloor(ceiling);
+    await controller.moveCeiling(ceiling);
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
+    let babzBalance = await nutz.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'token wasn\'t issued to account');
+    // sell half of the tokens
+    await nutz.sell(ceiling, babzBalance.div(2));
+    // check balance, supply
+    let newBabzBal = await nutz.balanceOf.call(accounts[0]);
+    assert.equal(newBabzBal.toNumber(), babzBalance.div(2).toNumber(), 'token wasn\'t deducted by sell');
+    const supplyBabz = await nutz.activeSupply.call();
+    assert.equal(supplyBabz.toNumber(), babzBalance.div(2).toNumber(), 'token wasn\'t destroyed');
+    // check allocation and reserve
+    let allocationWeiBefore = await pull.balanceOf.call(accounts[0]);
+    const HALF_ETH = web3.toWei(0.5, 'ether');
+    assert.equal(allocationWeiBefore.toString(), HALF_ETH, 'ether wasn\'t allocated for withdrawal');
+    const reserveWei = web3.eth.getBalance(controller.address);
+    assert.equal(reserveWei.toString(), HALF_ETH, 'ether allocation wasn\'t deducted from reserve');
+    // pull the ether from the account
+    const before = web3.eth.getBalance(accounts[0]);
+    await controller.pause();
+    try {
+      await pull.withdraw({ gasPrice: 0 });
+      assert.fail('should have thrown before');
+    } catch(error) {
+      assertJump(error);
+      let allocationWeiAfter = await pull.balanceOf.call(accounts[0]);
+      assert.equal(allocationWeiAfter.toNumber(), allocationWeiBefore.toNumber(), 'Change in allocation Wei');
+    }
+  });
+
   it('should allow to sell with active power pool', async () => {
     const power = await initPower();
     // create contract and purchase tokens for 1 ether

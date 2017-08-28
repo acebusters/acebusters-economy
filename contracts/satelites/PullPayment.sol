@@ -3,18 +3,18 @@ pragma solidity 0.4.11;
 
 import '../SafeMath.sol';
 import "../ownership/Ownable.sol";
-
+import "../controller/ControllerInterface.sol";
 
 /**
  * @title PullPayment
- * @dev Base contract supporting async send for pull payments. 
+ * @dev Base contract supporting async send for pull payments.
  */
 contract PullPayment is Ownable {
   using SafeMath for uint256;
 
   struct Payment {
     uint256 value;  // TODO: use compact storage
-    uint256 date;   // 
+    uint256 date;   //
   }
 
   uint public dailyLimit = 1000000000000000000000;  // 1 ETH
@@ -23,6 +23,10 @@ contract PullPayment is Ownable {
 
   mapping(address => Payment) internal payments;
 
+  modifier whenNotPaused () {
+    require(!ControllerInterface(owner).paused());
+     _;
+  }
   function balanceOf(address _owner) constant returns (uint256 value) {
     return payments[_owner].value;
   }
@@ -59,7 +63,7 @@ contract PullPayment is Ownable {
   }
 
 
-  function withdraw() public {
+  function withdraw() public whenNotPaused {
     address untrustedRecipient = msg.sender;
     uint256 amountWei = payments[untrustedRecipient].value;
 
