@@ -24,7 +24,7 @@ contract PullPayment is Ownable {
   mapping(address => Payment) internal payments;
 
   modifier whenNotPaused () {
-    require (!ControllerInterface(owner).paused());
+    require(!ControllerInterface(owner).paused());
      _;
   }
   function balanceOf(address _owner) constant returns (uint256 value) {
@@ -63,7 +63,7 @@ contract PullPayment is Ownable {
   }
 
 
-  function withdraw() public whenNotPaused{
+  function withdraw() public whenNotPaused {
     address untrustedRecipient = msg.sender;
     uint256 amountWei = payments[untrustedRecipient].value;
 

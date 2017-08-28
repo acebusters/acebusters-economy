@@ -97,7 +97,7 @@ contract('Nutz', (accounts) => {
     assert.equal(after - before, allocationWei.toNumber(), 'allocation wasn\'t payed out.');
   });
 
-  it('should not allow to sell as controller paused before withdraw', async () => {
+  it('should prohibit sell if controller paused', async () => {
     // create contract and purchase tokens for 1 ether
     const ceiling = new BigNumber(1000);
     await controller.moveFloor(ceiling);
@@ -127,7 +127,7 @@ contract('Nutz', (accounts) => {
     } catch(error) {
       assertJump(error);
       let allocationWeiAfter = await pull.balanceOf.call(accounts[0]);
-      assert.equal(allocationWeiAfter - allocationWeiBefore, 0, 'Change in allocation Wei');
+      assert.equal(allocationWeiAfter.toNumber(), allocationWeiBefore.toNumber(), 'Change in allocation Wei');
     }
   });
 
