@@ -1,7 +1,7 @@
 pragma solidity 0.4.11;
 
 import '../controller/Controller.sol';
-import '../Ownable.sol';
+import '../ownership/Ownable.sol';
 
 contract UpgradeEvent {
 
@@ -27,14 +27,14 @@ contract UpgradeEvent {
   bool onlyContractHolders;
   uint256 purchasePrice;
   uint256 salePrice;
-  
+
   function UpgradeEvent(address _oldController, address _nextController) {
     state = EventState.Verifying;
     nextController = _nextController;
     oldController = _oldController;
     council = msg.sender;
   }
-  
+
   modifier isState(EventState _state) {
     require(state == _state);
     _;
@@ -84,7 +84,7 @@ contract UpgradeEvent {
   function complete() isState(EventState.Controlling) {
     // if necessary, correct payment data
     // if necessary, correct storage data
-    
+
     // transfer ownership of storage to next controller
     Ownable(storageAddr).transferOwnership(nextController);
     // if intended, transfer ownership of pull payment account
