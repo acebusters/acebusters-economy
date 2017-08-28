@@ -1,7 +1,7 @@
 pragma solidity 0.4.11;
 
 import "../ERC20Basic.sol";
-import "../Ownable.sol";
+import "../ownership/Ownable.sol";
 import "../controller/ControllerInterface.sol";
 
 contract Power is Ownable, ERC20Basic {
