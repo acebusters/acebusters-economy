@@ -4,6 +4,7 @@ const Storage = artifacts.require('./satelites/Storage.sol');
 const PullPayment = artifacts.require('./satelites/PullPayment.sol');
 const MockController = artifacts.require('./helpers/MockController.sol');
 const ERC223ReceiverMock = artifacts.require('./helpers/ERC223ReceiverMock.sol');
+const ProxyMock = artifacts.require('./helpers/ProxyMock.sol');
 const assertJump = require('./helpers/assertJump');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
@@ -48,6 +49,27 @@ contract('Nutz', (accounts) => {
     await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     // check balance, supply and reserve
     const babzBalance = await nutz.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
+    const supplyBabz = await nutz.activeSupply.call();
+    assert.equal(supplyBabz.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued');
+    const reserveWei = web3.eth.getBalance(controller.address);
+    assert.equal(reserveWei.toNumber(), ONE_ETH, 'ether wasn\'t sent to contract');
+  });
+
+  it('should allow to purchase through proxy', async () => {
+    // create token contract
+    const ceiling = new BigNumber(30000);
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(ceiling);
+    const proxy = await ProxyMock.new();
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: proxy.address, value: ONE_ETH });
+    await web3.eth.transactionMined(txHash);
+    // purchase some tokens with ether
+    // nutz.purchase.getData(ceiling);
+    const data = '0xefef39a10000000000000000000000000000000000000000000000000000000000007530';
+    await proxy.forward(nutz.address, ONE_ETH, data, { from: accounts[0] });
+    // check balance, supply and reserve
+    const babzBalance = await nutz.balanceOf.call(proxy.address);
     assert.equal(babzBalance.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
     const supplyBabz = await nutz.activeSupply.call();
     assert.equal(supplyBabz.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued');
