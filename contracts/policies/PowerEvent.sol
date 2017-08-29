@@ -26,14 +26,17 @@ contract PowerEvent {
   uint256 public discountRate; // if rate 30%, this will be 300,000
   address[] public milestoneRecipients;
   uint256[] public milestoneShares;
-  
+
   // Params
   address public controllerAddr;
   address public powerAddr;
   uint256 public initialReserve;
   uint256 public initialSupply;
-  
-  function PowerEvent(address _controllerAddr, uint256 _startTime, uint256 _minDuration, uint256 _maxDuration, uint256 _softCap, uint256 _hardCap, uint256 _discount, address[] _milestoneRecipients, uint256[] _milestoneShares) {
+
+  function PowerEvent(address _controllerAddr, uint256 _startTime, uint256 _minDuration, uint256 _maxDuration, uint256 _softCap, uint256 _hardCap, uint256 _discount, address[] _milestoneRecipients, uint256[] _milestoneShares)
+  areValidMileStones(_milestoneRecipients, _milestoneShares) {
+    require(_minDuration <= _maxDuration);
+    require(_softCap <= _hardCap);
     controllerAddr = _controllerAddr;
     startTime = _startTime;
     minDuration = _minDuration;
@@ -45,10 +48,26 @@ contract PowerEvent {
     milestoneRecipients = _milestoneRecipients;
     milestoneShares = _milestoneShares;
   }
-  
+
   modifier isState(EventState _state) {
     require(state == _state);
     _;
+  }
+
+  modifier areValidMileStones(address[] _milestoneRecipients, uint256[] _milestoneShares) {
+    require(checkMilestones(_milestoneRecipients, _milestoneShares));
+    _;
+  }
+
+  function checkMilestones(address[] _milestoneRecipients, uint256[] _milestoneShares) internal returns (bool) {
+    require(_milestoneRecipients.length == _milestoneShares.length && _milestoneShares.length <= 4);
+    uint256 totalPercentage;
+    for(uint8 i = 0; i < _milestoneShares.length; i++) {
+      require(_milestoneShares[i] >= 0 && _milestoneShares[i] <= 1000000);
+      totalPercentage = totalPercentage.add(_milestoneShares[i]);
+    }
+    require(totalPercentage >= 0 && totalPercentage <= 1000000);
+    return true;
   }
 
   function tick() public {
@@ -81,7 +100,7 @@ contract PowerEvent {
     // set state
     state = EventState.Collecting;
   }
-  
+
   function stopCollection() isState(EventState.Collecting) {
     uint256 collected = controllerAddr.balance.sub(initialReserve);
     if (now > startTime.add(maxDuration)) {
@@ -107,7 +126,7 @@ contract PowerEvent {
     // keep going
     revert();
   }
-  
+
   function completeFailed() isState(EventState.Failed) {
     var contr = Controller(controllerAddr);
     // move floor (set ceiling or max floor)
@@ -118,7 +137,7 @@ contract PowerEvent {
     // set state
     state = EventState.Complete;
   }
-  
+
   function completeClosed() isState(EventState.Closed) {
     var contr = Controller(controllerAddr);
     // move ceiling
@@ -144,5 +163,5 @@ contract PowerEvent {
     // set state
     state = EventState.Complete;
   }
-  
+
 }
