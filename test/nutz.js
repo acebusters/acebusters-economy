@@ -40,6 +40,12 @@ contract('Nutz', (accounts) => {
     return power;
   };
 
+  async function purchaseNutzForAccount(_account, _amountNutz) {
+    await controller.moveFloor(_amountNutz);
+    await controller.moveCeiling(_amountNutz);
+    await nutz.purchase(_amountNutz, { from: _account, value: ONE_ETH });
+  };
+
   it('should allow to purchase', async () => {
     // create token contract
     const ceiling = new BigNumber(30000);
@@ -418,5 +424,55 @@ contract('Nutz', (accounts) => {
       assertJump(error);
     }
   });
+
+  it('should return the correct allowance amount after approval', async function() {
+    await nutz.approve(accounts[1], 100);
+    let allowance = await nutz.allowance(accounts[0], accounts[1]);
+
+    assert.equal(allowance, 100);
+  });
+
+  it('should return correct balances after transfering from another account', async function() {
+    await purchaseNutzForAccount(accounts[0], 100);
+
+    await nutz.approve(accounts[1], babz(100));
+    await nutz.transferFrom(accounts[0], accounts[2], babz(100), { from: accounts[1] });
+
+    let balance0 = await nutz.balanceOf(accounts[0]);
+    assert.equal(balance0.toNumber(), 0);
+
+    let balance1 = await nutz.balanceOf(accounts[2]);
+    assert.equal(balance1.toNumber(), babz(100));
+
+    let balance2 = await nutz.balanceOf(accounts[1]);
+    assert.equal(balance2.toNumber(), 0);
+  });
+
+  it('should decrease allowance after transfering from another account', async function() {
+    await purchaseNutzForAccount(accounts[0], 100);
+
+    await nutz.approve(accounts[1], babz(100));
+
+    // transfer just part of the allowed
+    await nutz.transferFrom(accounts[0], accounts[2], babz(70), { from: accounts[1] });
+
+    // expect allowance to reduced by the amount transfered
+    let allowance = await nutz.allowance(accounts[0], accounts[1]);
+    assert.equal(allowance.toNumber(), babz(30));
+  });
+
+  it('should throw an error when trying to transfer more than allowed', async function() {
+    await purchaseNutzForAccount(accounts[0], 100);
+
+    await nutz.approve(accounts[1], babz(99));
+    try {
+      // try transfer more then approved
+      await nutz.transferFrom(accounts[0], accounts[2], babz(100), {from: accounts[1]});
+      assert.fail('should have thrown before');
+    } catch (error) {
+      assertJump(error);
+    }
+  });
+
 
 });
