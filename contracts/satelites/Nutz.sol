@@ -12,7 +12,7 @@ contract Nutz is Ownable, ERC20 {
 
   event Purchase(address indexed purchaser, uint256 value);
   event Sell(address indexed seller, uint256 value);
-  
+
   string public name = "Acebusters Nutz";
   // acebusters units:
   // 10^12 - Nutz   (NTZ)
@@ -75,7 +75,7 @@ contract Nutz is Ownable, ERC20 {
   // ############################################
   // ########### PUBLIC FUNCTIONS ###############
   // ############################################
-  
+
   function approve(address _spender, uint256 _amountBabz) public {
     ControllerInterface(owner).approve(msg.sender, _spender, _amountBabz);
     Approval(msg.sender, _spender, _amountBabz);
@@ -124,6 +124,7 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function sell(uint256 _price, uint256 _amountBabz) public {
+    require(_amountBabz != 0);
     ControllerInterface(owner).sell(msg.sender, _price, _amountBabz);
     Sell(msg.sender, _amountBabz);
   }

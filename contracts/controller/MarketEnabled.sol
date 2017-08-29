@@ -81,6 +81,7 @@ contract MarketEnabled is NutzEnabled {
 
   function sell(address _from, uint256 _price, uint256 _amountBabz) public onlyNutz whenNotPaused {
     uint256 effectiveFloor = floor();
+    require(_amountBabz != 0);
     require(effectiveFloor != INFINITY);
     require(_price == effectiveFloor);
 
