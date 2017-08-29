@@ -33,6 +33,31 @@ contract('MarketEnabled', (accounts) => {
     await market.moveCeiling(newPrice);
   };
 
+  it('#floor should return infinity if no ETH in reserve', async() => {
+    assert.equal((await market.floor()).toNumber(), INFINITY);
+  });
+
+  it('#moveCeiling cannot set purchase price larger then sell price', async() => {
+    await market.moveFloor(10);
+    try {
+      await market.moveCeiling(20);
+      assert.fail('should have thrown before');
+    } catch(error) {
+      assertJump(error);
+    }
+  });
+
+  it('#moveFloor cannot set sell price smaller then purchase price', async() => {
+    await market.moveFloor(10);
+    await market.moveCeiling(9);
+    try {
+      await market.moveFloor(8);
+      assert.fail('should have thrown before');
+    } catch(error) {
+      assertJump(error);
+    }
+  });
+
   describe('#purchase', () => {
 
     describe(`regular scenario. Purchase NTZ for 30000 NTZ/ETH with 1 ETH`, () => {
@@ -110,6 +135,16 @@ contract('MarketEnabled', (accounts) => {
       }
     });
 
+    it('should fail if requested price differs from effective purchase price', async() => {
+      await setSellPrice(100);
+      try {
+        await nutz.purchase(99, { from: accounts[0], value: ONE_ETH });
+        assert.fail('should have thrown before');
+      } catch(error) {
+        assertJump(error);
+      }
+    });
+
   });
 
   describe('#sell', () => {
@@ -125,6 +160,19 @@ contract('MarketEnabled', (accounts) => {
         assertJump(error);
       }
     });
+
+    it('should fail if requested price differs from effective sell price', async() => {
+      const sellPrice = 50;
+      await setSellPrice(sellPrice);
+      await nutz.purchase(50, { from: accounts[0], value: ONE_ETH });
+      try {
+        await nutz.sell(sellPrice + 1, 50, { from: accounts[0] });
+        assert.fail('should have thrown before');
+      } catch(error) {
+        assertJump(error);
+      }
+    });
+
   });
 
 });
