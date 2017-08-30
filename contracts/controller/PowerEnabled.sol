@@ -9,27 +9,36 @@ contract PowerEnabled is MarketEnabled {
   // satelite contract addresses
   address public powerAddr;
 
+  // maxPower is a limit of total power that can be outstanding
+  // maxPower has a valid value between outstandingPower and authorizedPow/2
+  uint256 public maxPower = 0;
+
+  // time it should take to power down
+  uint256 public downtime;
+
+  // data structure for withdrawals
+  struct DownRequest {
+    address owner;
+    uint256 total;
+    uint256 left;
+    uint256 start;
+  }
+  DownRequest[] public downs;
+
   modifier onlyPower() {
     require(msg.sender == powerAddr);
     _;
   }
 
-  function PowerEnabled(address _powerAddr, address _pullAddr, address _storageAddr, address _nutzAddr) 
+  function PowerEnabled(address _powerAddr, address _pullAddr, address _storageAddr, address _nutzAddr)
     MarketEnabled(_pullAddr, _nutzAddr, _storageAddr) {
     powerAddr = _powerAddr;
   }
-
-  // maxPower is a limit of total power that can be outstanding
-  // maxPower has a valid value between outstandingPower and authorizedPow/2
-  uint256 public maxPower = 0;
 
   function setMaxPower(uint256 _maxPower) public onlyAdmins {
     require(outstandingPower() <= _maxPower && _maxPower < authorizedPower());
     maxPower = _maxPower;
   }
-
-  // time it should take to power down
-  uint256 public downtime;
 
   function setDowntime(uint256 _downtime) public onlyAdmins {
     downtime = _downtime;
@@ -72,11 +81,6 @@ contract PowerEnabled is MarketEnabled {
     _slashPower(_holder, _value, _data);
   }
 
-
-
-
-
-
   // this is called when NTZ are deposited into the power pool
   function powerUp(address _sender, address _from, uint256 _amountBabz) public onlyNutz whenNotPaused {
     uint256 authorizedPow = authorizedPower();
@@ -94,7 +98,7 @@ contract PowerEnabled is MarketEnabled {
     }
 
     _setOutstandingPower(outstandingPow.add(amountPow));
-    
+
     uint256 powBal = powerBalanceOf(_from).add(amountPow);
     require(powBal >= authorizedPow.div(10000)); // minShare = 10000
     _setPowerBalanceOf(_from, powBal);
@@ -103,16 +107,6 @@ contract PowerEnabled is MarketEnabled {
     _setPowerPool(powerPool().add(_amountBabz));
     Power(powerAddr).powerUp(_from, amountPow);
   }
-
-
-  // data structure for withdrawals
-  struct DownRequest {
-    address owner;
-    uint256 total;
-    uint256 left;
-    uint256 start;
-  }
-  DownRequest[] public downs;
 
   function powerTotalSupply() constant returns (uint256) {
     uint256 issuedPower = authorizedPower().div(2);
