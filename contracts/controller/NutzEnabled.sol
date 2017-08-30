@@ -71,6 +71,7 @@ contract NutzEnabled is Pausable, StorageEnabled {
   // require(_from != powerAddr)
   function _transfer(address _from, address _to, uint256 _amountBabz, bytes _data) internal {
     require(_to != address(this));
+    require(_to != address(0x0));
     require(_amountBabz > 0);
     _setBabzBalanceOf(_from, babzBalanceOf(_from).sub(_amountBabz));
     _setBabzBalanceOf(_to, babzBalanceOf(_to).add(_amountBabz));
