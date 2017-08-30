@@ -54,7 +54,7 @@ contract MarketEnabled is NutzEnabled {
     salePrice = _newSalePrice;
   }
 
-  function purchase(address _sender, uint256 _price) public onlyNutz payable whenNotPaused returns (uint256) {
+  function purchase(address _sender, uint256 _price) public onlyNutz payable whenNotPaused returns (uint256, bool) {
     // disable purchases if purchasePrice set to 0
     require(purchasePrice > 0);
     require(_price == purchasePrice);
@@ -73,10 +73,7 @@ contract MarketEnabled is NutzEnabled {
     }
     _setActiveSupply(activeSup.add(amountBabz));
     _setBabzBalanceOf(_sender, babzBalanceOf(_sender).add(amountBabz));
-
-    bytes memory empty;
-    _checkDestination(address(this), _sender, amountBabz, empty);
-    return amountBabz;
+    return (amountBabz, onlyContractHolders);
   }
 
   function sell(address _from, uint256 _price, uint256 _amountBabz) public onlyNutz whenNotPaused {

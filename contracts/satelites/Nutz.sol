@@ -3,6 +3,7 @@ pragma solidity 0.4.11;
 import "../ERC20.sol";
 import "../ownership/Ownable.sol";
 import "../controller/ControllerInterface.sol";
+import "../ERC223ReceivingContract.sol";
 
 /**
  * Nutz implements a price floor and a price ceiling on the token being
@@ -60,14 +61,32 @@ contract Nutz is Ownable, ERC20 {
   }
 
 
+  function _checkDestination(address _from, address _to, uint256 _value, bytes _data, bool _onlyContractHolders) internal {
+    // erc223: Retrieve the size of the code on target address, this needs assembly .
+    uint256 codeLength;
+    assembly {
+      codeLength := extcodesize(_to)
+    }
+    if(codeLength>0) {
+      ERC223ReceivingContract untrustedReceiver = ERC223ReceivingContract(_to);
+      // untrusted contract call
+      untrustedReceiver.tokenFallback(_from, _value, _data);
+    } else {
+      require(_onlyContractHolders == false);
+    }
+  }
+
+
 
   // ############################################
   // ########### ADMIN FUNCTIONS ################
   // ############################################
 
-  function powerDown(address _holder, uint256 _amountBabz) onlyOwner {
+  function powerDown(address powerAddr, address _holder, uint256 _amountBabz, bool _onlyContractHolders) onlyOwner {
     // NTZ transfered from power pool to user's balance
-    Transfer(0x0, _holder, _amountBabz);
+    Transfer(powerAddr, _holder, _amountBabz);
+    bytes memory empty;
+    _checkDestination(powerAddr, _holder, _amountBabz, empty, _onlyContractHolders);
   }
 
 
@@ -86,8 +105,9 @@ contract Nutz is Ownable, ERC20 {
       // powerup
       ControllerInterface(owner).powerUp(msg.sender, msg.sender, _amountBabz);
     } else {
-      ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
+      bool onlyContractHolders = ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
       Transfer(msg.sender, _to, _amountBabz);
+      _checkDestination(msg.sender, _to, _amountBabz, _data, onlyContractHolders);
     }
     return true;
   }
@@ -106,8 +126,9 @@ contract Nutz is Ownable, ERC20 {
       // powerup
       ControllerInterface(owner).powerUp(msg.sender, _from, _amountBabz);
     } else {
-      ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz, _data);
+      bool onlyContractHolders = ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz, _data);
       Transfer(_from, _to, _amountBabz);
+      _checkDestination(_from, _to, _amountBabz, _data, onlyContractHolders);
     }
     return true;
   }
@@ -119,8 +140,12 @@ contract Nutz is Ownable, ERC20 {
 
   function purchase(uint256 _price) public payable {
     require(msg.value > 0);
-    uint256 amountBabz = ControllerInterface(owner).purchase.value(msg.value)(msg.sender, _price);
+    uint256 amountBabz;
+    bool onlyContractHolders;
+    (amountBabz, onlyContractHolders) = ControllerInterface(owner).purchase.value(msg.value)(msg.sender, _price);
     Purchase(msg.sender, amountBabz);
+    bytes memory empty;
+    _checkDestination(address(this), msg.sender, amountBabz, empty, onlyContractHolders);
   }
 
   function sell(uint256 _price, uint256 _amountBabz) public {
