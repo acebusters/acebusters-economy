@@ -4,6 +4,7 @@ const Storage = artifacts.require('./satelites/Storage.sol');
 const PullPayment = artifacts.require('./satelites/PullPayment.sol');
 const Controller = artifacts.require('./controller/Controller.sol');
 const PowerEvent = artifacts.require('./policies/PowerEvent.sol');
+const assertJump = require('./helpers/assertJump');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
 const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
@@ -87,6 +88,176 @@ contract('PowerEvent', (accounts) => {
     const investorsPow = await power.balanceOf.call(INVESTORS);
     assert.equal(founderPow.toNumber(), totalPow.mul(0.7).toNumber());
     assert.equal(investorsPow.toNumber(), totalPow.mul(0.3).toNumber());
+  });
+
+  it('should not allow to initilialize power event because of milestone length mismatch', async () => {
+    const nutz = await Nutz.new();
+    const power = await Power.new();
+    const storage = await Storage.new();
+    const pull = await PullPayment.new();
+    controller = await Controller.new(power.address, pull.address, nutz.address, storage.address);
+    nutz.transferOwnership(controller.address);
+    power.transferOwnership(controller.address);
+    storage.transferOwnership(controller.address);
+    pull.transferOwnership(controller.address);
+    await controller.unpause();
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(CEILING_PRICE);
+    await controller.setOnlyContractHolders(false);
+
+
+    // prepare event #1
+    const FOUNDERS = accounts[1];
+    const startTime = (Date.now() / 1000 | 0) - 60;
+    const minDuration = 0;
+    const maxDuration = 3600;
+    const softCap = WEI_AMOUNT;
+    const hardCap = WEI_AMOUNT;
+    const discountRate = 60000000000; // make ceiling 1,200,000,000
+    const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
+    const milestoneShares = [200000];
+    try {
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      assert.fail('should have thrown before');
+    } catch(error) {
+      assertJump(error);
+    }
+  });
+
+  it('should not allow to initilialize power event because min duration greater than max duration', async () => {
+    const nutz = await Nutz.new();
+    const power = await Power.new();
+    const storage = await Storage.new();
+    const pull = await PullPayment.new();
+    controller = await Controller.new(power.address, pull.address, nutz.address, storage.address);
+    nutz.transferOwnership(controller.address);
+    power.transferOwnership(controller.address);
+    storage.transferOwnership(controller.address);
+    pull.transferOwnership(controller.address);
+    await controller.unpause();
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(CEILING_PRICE);
+    await controller.setOnlyContractHolders(false);
+
+
+    // prepare event #1
+    const FOUNDERS = accounts[1];
+    const startTime = (Date.now() / 1000 | 0) - 60;
+    const minDuration = 3601;
+    const maxDuration = 3600;
+    const softCap = WEI_AMOUNT;
+    const hardCap = WEI_AMOUNT;
+    const discountRate = 60000000000; // make ceiling 1,200,000,000
+    const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
+    const milestoneShares = [200000, 5000];
+    try {
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      assert.fail('should have thrown before');
+    } catch(error) {
+      assertJump(error);
+    }
+  });
+
+  it('should not allow to initilialize power event because soft cap greater than hard cap', async () => {
+    const nutz = await Nutz.new();
+    const power = await Power.new();
+    const storage = await Storage.new();
+    const pull = await PullPayment.new();
+    controller = await Controller.new(power.address, pull.address, nutz.address, storage.address);
+    nutz.transferOwnership(controller.address);
+    power.transferOwnership(controller.address);
+    storage.transferOwnership(controller.address);
+    pull.transferOwnership(controller.address);
+    await controller.unpause();
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(CEILING_PRICE);
+    await controller.setOnlyContractHolders(false);
+
+
+    // prepare event #1
+    const FOUNDERS = accounts[1];
+    const startTime = (Date.now() / 1000 | 0) - 60;
+    const minDuration = 0;
+    const maxDuration = 3600;
+    const softCap = WEI_AMOUNT + 1;
+    const hardCap = WEI_AMOUNT;
+    const discountRate = 60000000000; // make ceiling 1,200,000,000
+    const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
+    const milestoneShares = [200000, 5000];
+    try {
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      assert.fail('should have thrown before');
+    } catch(error) {
+      assertJump(error);
+    }
+  });
+
+  it('should not allow to initilialize power event because milestoneShare[0] greater than 100%', async () => {
+    const nutz = await Nutz.new();
+    const power = await Power.new();
+    const storage = await Storage.new();
+    const pull = await PullPayment.new();
+    controller = await Controller.new(power.address, pull.address, nutz.address, storage.address);
+    nutz.transferOwnership(controller.address);
+    power.transferOwnership(controller.address);
+    storage.transferOwnership(controller.address);
+    pull.transferOwnership(controller.address);
+    await controller.unpause();
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(CEILING_PRICE);
+    await controller.setOnlyContractHolders(false);
+
+
+    // prepare event #1
+    const FOUNDERS = accounts[1];
+    const startTime = (Date.now() / 1000 | 0) - 60;
+    const minDuration = 0;
+    const maxDuration = 3600;
+    const softCap = WEI_AMOUNT + 1;
+    const hardCap = WEI_AMOUNT;
+    const discountRate = 60000000000; // make ceiling 1,200,000,000
+    const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
+    const milestoneShares = [1000001, 5000];
+    try {
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      assert.fail('should have thrown before');
+    } catch(error) {
+      assertJump(error);
+    }
+  });
+
+  it('should not allow to initilialize power event because total share percentage greater than 100%', async () => {
+    const nutz = await Nutz.new();
+    const power = await Power.new();
+    const storage = await Storage.new();
+    const pull = await PullPayment.new();
+    controller = await Controller.new(power.address, pull.address, nutz.address, storage.address);
+    nutz.transferOwnership(controller.address);
+    power.transferOwnership(controller.address);
+    storage.transferOwnership(controller.address);
+    pull.transferOwnership(controller.address);
+    await controller.unpause();
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(CEILING_PRICE);
+    await controller.setOnlyContractHolders(false);
+
+
+    // prepare event #1
+    const FOUNDERS = accounts[1];
+    const startTime = (Date.now() / 1000 | 0) - 60;
+    const minDuration = 0;
+    const maxDuration = 3600;
+    const softCap = WEI_AMOUNT + 1;
+    const hardCap = WEI_AMOUNT;
+    const discountRate = 60000000000; // make ceiling 1,200,000,000
+    const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
+    const milestoneShares = [600000, 40001];
+    try {
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      assert.fail('should have thrown before');
+    } catch(error) {
+      assertJump(error);
+    }
   });
 
   it('should allow to execute event that fails');
