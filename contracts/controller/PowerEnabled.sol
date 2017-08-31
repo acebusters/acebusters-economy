@@ -3,7 +3,7 @@ pragma solidity 0.4.11;
 import "../satelites/Power.sol";
 import "../satelites/Nutz.sol";
 import "./MarketEnabled.sol";
-import "./PowerDownRequestLib.sol";
+import "./WithPowerDownRequests.sol";
 
 contract PowerEnabled is MarketEnabled, WithPowerDownRequests {
 
