@@ -1,6 +1,6 @@
 pragma solidity 0.4.11;
 
-library PowerDownRequestLib {
+contract WithPowerDownRequests {
 
   // code used to denote DownRequest when packing into bytes
   // see #packToUint
@@ -19,7 +19,7 @@ library PowerDownRequestLib {
   // [< 7 bytes - DownRequest#start >< 12 bytes - DownRequest#left >< 12 bytes - DownRequest#total >< 1 byte - request code >]
   //
   // Last byte denotes the type of the request and serves as a poor man's format specification
-  function packToUint(DownRequest _dr) returns (uint) {
+  function packDownRequestToUint(DownRequest _dr) internal returns (uint) {
     return DOWN_REQUEST_CODE
            + (_dr.total << 8)
            + (_dr.left << (96 + 8))
@@ -28,7 +28,7 @@ library PowerDownRequestLib {
 
   // Unpack DownRequest struct from 32 byte uint.
   // See #packToUint for packing structure.
-  function unpackFromUint(uint rawBytes) returns (DownRequest) {
+  function unpackDownRequestFromUint(uint rawBytes) internal returns (DownRequest) {
     require(uint8(rawBytes) == DOWN_REQUEST_CODE);
     return DownRequest(
         uint96(rawBytes >> (8)),
@@ -47,16 +47,16 @@ library PowerDownRequestLib {
   * - an array of requests
   * - an index of the next free position in the array. If all the positions are filled up, returns -1.
   */
-  function unpackRequestList(uint[10] _packedRequests) returns (DownRequest[10], int) {
+  function unpackRequestList(uint[10] _packedRequests) internal returns (DownRequest[10], int) {
     DownRequest[10] memory requests;
     int freePos = -1;
     for (uint i = 0; i < _packedRequests.length; i++) {
       uint packedRequest = _packedRequests[i];
       if (packedRequest == 0) {
-        freePos = i;
+        freePos = int(i);
         break;
       }
-      requests[i] = unpackFromUint(packedRequest);
+      requests[i] = unpackDownRequestFromUint(packedRequest);
     }
     return (requests, freePos);
   }
@@ -64,16 +64,16 @@ library PowerDownRequestLib {
   // unwraps array of uint-packed DownRequests into the array of array[3], so
   // that it could be returned to external caller.
   // It is not possible to return DownRequest from the public function
-  function unpackRequestListForPublic(uint[10] _packedRequests) returns (uint[10][3], int) {
+  function unpackRequestListForPublic(uint[10] _packedRequests) internal returns (uint[10][3], int) {
     uint[10][3] memory requests;
     int freePos = -1;
     for (uint i = 0; i < _packedRequests.length; i++) {
       uint packedRequest = _packedRequests[i];
       if (packedRequest == 0) {
-        freePos = i;
+        freePos = int(i);
         break;
       }
-      DownRequest memory request = unpackFromUint(packedRequest);
+      DownRequest memory request = unpackDownRequestFromUint(packedRequest);
       requests[i][0] = request.total;
       requests[i][1] = request.left;
       requests[i][2] = request.start;

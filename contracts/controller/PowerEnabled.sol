@@ -5,7 +5,7 @@ import "../satelites/Nutz.sol";
 import "./MarketEnabled.sol";
 import "./PowerDownRequestLib.sol";
 
-contract PowerEnabled is MarketEnabled {
+contract PowerEnabled is MarketEnabled, WithPowerDownRequests {
 
   // satelite contract addresses
   address public powerAddr;
@@ -40,18 +40,18 @@ contract PowerEnabled is MarketEnabled {
   // for public API return only 10 down requests, cause
   // we cannot return dynamic array from public function.
   // Number of requests (10) is arbitrary, feel free to adjust.
-  function _downRequests(address _user) internal returns (PowerDownRequestLib.DownRequest[10], int) {
+  function _downRequests(address _user) internal returns (DownRequest[10], int) {
     uint[10] memory packedRequests = Storage(storageAddr).getRequests('Power', _user);
-    return PowerDownRequestLib.unpackRequestList(packedRequests);
+    return unpackRequestList(packedRequests);
   }
 
   function downs(address _user) public returns (uint[10][3], int) {
     uint[10] memory packedRequests = Storage(storageAddr).getRequests('Power', _user);
-    return PowerDownRequestLib.unpackRequestListForPublic(packedRequests);
+    return unpackRequestListForPublic(packedRequests);
   }
 
-  function _setDownRequest(address _holder, uint _index, PowerDownRequestLib.DownRequest _down) internal {
-    uint packedRequest = PowerDownRequestLib.packToUint(_down);
+  function _setDownRequest(address _holder, uint _index, DownRequest _down) internal {
+    uint packedRequest = packDownRequestToUint(_down);
     Storage(storageAddr).setRequestValue('Power', _holder, _index, packedRequest);
   }
 
@@ -91,7 +91,7 @@ contract PowerEnabled is MarketEnabled {
 
   function slashDownRequest(uint256 _pos, address _holder, uint256 _value, bytes32 _data) public onlyAdmins {
     var (requests,) = _downRequests(_holder);
-    PowerDownRequestLib.DownRequest memory req = requests[_pos];
+    DownRequest memory req = requests[_pos];
     req.left = req.left.sub(_value);
     _setDownRequest(_holder, _pos, req);
     _slashPower(_holder, _value, _data);
@@ -130,7 +130,7 @@ contract PowerEnabled is MarketEnabled {
     return maxPower >= issuedPower ? maxPower : issuedPower;
   }
 
-  function vestedDown(PowerDownRequestLib.DownRequest[10] _downs, uint256 _pos, uint256 _now) internal constant returns (uint256) {
+  function vestedDown(DownRequest[10] _downs, uint256 _pos, uint256 _now) internal constant returns (uint256) {
     if (_downs.length <= _pos) {
       return 0;
     }
@@ -139,7 +139,7 @@ contract PowerEnabled is MarketEnabled {
     }
     // calculate amountVested
     // amountVested is amount that can be withdrawn according to time passed
-    PowerDownRequestLib.DownRequest memory req = _downs[_pos];
+    DownRequest memory req = _downs[_pos];
     uint256 timePassed = _now.sub(req.start);
     if (timePassed > downtime) {
      timePassed = downtime;
@@ -159,14 +159,14 @@ contract PowerEnabled is MarketEnabled {
     _setPowerBalanceOf(_owner, powerBalanceOf(_owner).sub(_amountPower));
     var (, freePos) = _downRequests(_owner);
     require(freePos >= 0);
-    _setDownRequest(_owner, uint(freePos), PowerDownRequestLib.DownRequest(_amountPower, _amountPower, now));
+    _setDownRequest(_owner, uint(freePos), DownRequest(_amountPower, _amountPower, now));
   }
 
   // executes a powerdown request
   function downTick(address _holder, uint256 _pos, uint256 _now) public onlyPower whenNotPaused {
     var (_downs,) = _downRequests(_holder);
     uint256 amountPow = vestedDown(_downs, _pos, _now);
-    PowerDownRequestLib.DownRequest memory req = _downs[_pos];
+    DownRequest memory req = _downs[_pos];
 
     // prevent power down in tiny steps
     uint256 minStep = req.total.div(10);
