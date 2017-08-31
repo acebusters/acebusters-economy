@@ -260,6 +260,48 @@ contract('PowerEvent', (accounts) => {
     }
   });
 
+  it('completeClosed execution gas cost should be lesser than block gas limit', async () => {
+  const nutz = await Nutz.new();
+  const power = await Power.new();
+  const storage = await Storage.new();
+  const pull = await PullPayment.new();
+  controller = await Controller.new(power.address, pull.address, nutz.address, storage.address);
+  nutz.transferOwnership(controller.address);
+  power.transferOwnership(controller.address);
+  storage.transferOwnership(controller.address);
+  pull.transferOwnership(controller.address);
+  await controller.unpause();
+  await controller.moveFloor(INFINITY);
+  await controller.moveCeiling(CEILING_PRICE);
+  await controller.setOnlyContractHolders(false);
+
+
+  // prepare event
+  const FOUNDERS = accounts[1];
+  const INVESTORS = accounts[2];
+  const EXEC_BOARD = accounts[3];
+  const GOVERNING_COUNCIL = accounts[4];
+  const startTime = (Date.now() / 1000 | 0) - 60;
+  const minDuration = 0;
+  const maxDuration = 3600;
+  const softCap2 = WEI_AMOUNT * 5000;
+  const hardCap2 = WEI_AMOUNT * 30000;
+  const discountRate2 = 1500000; // 150% -> make ceiling 30,000
+  const milestoneRecipients2 = [FOUNDERS, INVESTORS, EXEC_BOARD, GOVERNING_COUNCIL]; //setting receipients to max limit of 4
+  const milestoneShares2 = [200000, 100000, 100000, 100000]; // 20%, 10%, 10% and 10%
+  const event2 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap2, hardCap2, discountRate2, milestoneRecipients2, milestoneShares2);
+  // event - buy in
+  await controller.addAdmin(event2.address);
+  await event2.startCollection();
+  await nutz.purchase(30000, {from: INVESTORS, value: hardCap2 });
+  // event - burn
+  await event2.stopCollection();
+  const ClosedPowerEvent = await event2.completeClosed();
+  let functionGasCost = ClosedPowerEvent.receipt.gasUsed;
+  // setting block gas limit to minumum 3000000 for safety, half of Current limit ~ 6000000
+  assert(functionGasCost < 3000000, 'gas cost exceeds block gas limit');
+  });
+
   it('should allow to execute event that fails');
 
 });
