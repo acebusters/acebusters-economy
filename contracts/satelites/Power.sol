@@ -11,7 +11,7 @@ contract Power is Ownable, ERC20Basic {
   string public name = "Acebusters Power";
   string public symbol = "ABP";
   uint256 public decimals = 12;
-                                    
+
 
   function balanceOf(address _holder) constant returns (uint256 balance) {
     return ControllerInterface(owner).powerBalanceOf(_holder);
