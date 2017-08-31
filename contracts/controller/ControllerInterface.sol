@@ -15,14 +15,14 @@ contract ControllerInterface {
   function allowance(address _owner, address _spender) constant returns (uint256);
 
   function approve(address _owner, address _spender, uint256 _amountBabz) public;
-  function transfer(address _from, address _to, uint256 _amountBabz, bytes _data) public;
+  function transfer(address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool);
   function transferFrom(address _sender, address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool);
 
   // Market functions
   function floor() constant returns (uint256);
   function ceiling() constant returns (uint256);
 
-  function purchase(address _sender, uint256 _price) public payable returns (uint256);
+  function purchase(address _sender, uint256 _price) public payable returns (uint256, bool);
   function sell(address _from, uint256 _price, uint256 _amountBabz) public;
 
   // Power functions

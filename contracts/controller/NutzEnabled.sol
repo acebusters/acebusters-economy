@@ -3,7 +3,6 @@ pragma solidity 0.4.11;
 import "../SafeMath.sol";
 import "./StorageEnabled.sol";
 import "../Pausable.sol";
-import "../ERC223ReceivingContract.sol";
 
 contract NutzEnabled is Pausable, StorageEnabled {
   using SafeMath for uint;
@@ -51,21 +50,6 @@ contract NutzEnabled is Pausable, StorageEnabled {
     allowed[_owner][_spender] = _amountBabz;
   }
 
-  function _checkDestination(address _from, address _to, uint256 _value, bytes _data) internal {
-    // erc223: Retrieve the size of the code on target address, this needs assembly .
-    uint256 codeLength;
-    assembly {
-      codeLength := extcodesize(_to)
-    }
-    if(codeLength>0) {
-      ERC223ReceivingContract untrustedReceiver = ERC223ReceivingContract(_to);
-      // untrusted contract call
-      untrustedReceiver.tokenFallback(_from, _value, _data);
-    } else {
-      require(onlyContractHolders == false);
-    }
-  }
-
   // assumption that params have allready be sanity checked:
   // require(_from != _to)
   // require(_from != powerAddr)
@@ -75,18 +59,18 @@ contract NutzEnabled is Pausable, StorageEnabled {
     require(_amountBabz > 0);
     _setBabzBalanceOf(_from, babzBalanceOf(_from).sub(_amountBabz));
     _setBabzBalanceOf(_to, babzBalanceOf(_to).add(_amountBabz));
-    _checkDestination(_from, _to, _amountBabz, _data);
   }
 
-  function transfer(address _from, address _to, uint256 _amountBabz, bytes _data) public onlyNutz whenNotPaused {
+  function transfer(address _from, address _to, uint256 _amountBabz, bytes _data) public onlyNutz whenNotPaused returns (bool) {
     _transfer(_from, _to, _amountBabz, _data);
+    return onlyContractHolders;
   }
 
   function transferFrom(address _sender, address _from, address _to, uint256 _amountBabz, bytes _data) public onlyNutz whenNotPaused returns (bool) {
     require(_from != _to);
     allowed[_from][_sender] = allowed[_from][_sender].sub(_amountBabz);
     _transfer(_from, _to, _amountBabz, _data);
-    return true;
+    return onlyContractHolders;
   }
 
 }
