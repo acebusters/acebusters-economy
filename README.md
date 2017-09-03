@@ -16,7 +16,18 @@ npm install
 ### run tests
 
 ```
-npm run tests
+npm test
+```
+
+or run individual tests like this:
+
+```
+npm test test/nutz.js
+```
+
+To avoid recompiling contracts all the time, consider patching truffle with supplied patch:
+```
+patch node_modules/truffle/build/cli.bundled.js truffle-test-cache.patch
 ```
 
 ### code coverage
