@@ -34,4 +34,5 @@ contract ControllerInterface {
   function powerUp(address _sender, address _from, uint256 _amountBabz) public;
   function downTick(address _owner, uint256 _pos, uint256 _now) public;
   function createDownRequest(address _owner, uint256 _amountPower) public;
+  function downs(address _owner) constant public returns(uint[3][10], int);
 }

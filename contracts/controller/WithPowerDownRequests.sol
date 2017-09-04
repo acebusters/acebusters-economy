@@ -20,10 +20,16 @@ contract WithPowerDownRequests {
   //
   // Last byte denotes the type of the request and serves as a poor man's format specification
   function packDownRequestToUint(DownRequest _dr) internal returns (uint) {
-    return DOWN_REQUEST_CODE
-           + (_dr.total << 8)
-           + (_dr.left << (96 + 8))
-           + (_dr.start << (96 + 96 + 8));
+    uint result = DOWN_REQUEST_CODE
+                   + (_dr.total << 8)
+                   + (_dr.left << (96 + 8))
+                   + (_dr.start << (96 + 96 + 8));
+    // verify we'll be able to get struct back
+    DownRequest memory verify = unpackDownRequestFromUint(result);
+    assert(verify.total == _dr.total);
+    assert(verify.left == _dr.left);
+    assert(verify.start == _dr.start);
+    return result;
   }
 
   // Unpack DownRequest struct from 32 byte uint.
@@ -64,8 +70,8 @@ contract WithPowerDownRequests {
   // unwraps array of uint-packed DownRequests into the array of array[3], so
   // that it could be returned to external caller.
   // It is not possible to return DownRequest from the public function
-  function unpackRequestListForPublic(uint[10] _packedRequests) internal returns (uint[10][3], int) {
-    uint[10][3] memory requests;
+  function unpackRequestListForPublic(uint[10] _packedRequests) internal returns (uint[3][10], int) {
+    uint[3][10] memory requests;
     int freePos = -1;
     for (uint i = 0; i < _packedRequests.length; i++) {
       uint packedRequest = _packedRequests[i];

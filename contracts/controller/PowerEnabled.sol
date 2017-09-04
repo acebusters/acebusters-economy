@@ -45,7 +45,7 @@ contract PowerEnabled is MarketEnabled, WithPowerDownRequests {
     return unpackRequestList(packedRequests);
   }
 
-  function downs(address _user) public returns (uint[10][3], int) {
+  function downs(address _user) constant public returns (uint[3][10], int) {
     uint[10] memory packedRequests = Storage(storageAddr).getRequests('Power', _user);
     return unpackRequestListForPublic(packedRequests);
   }
