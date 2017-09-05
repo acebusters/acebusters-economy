@@ -1,5 +1,5 @@
 const Nutz = artifacts.require('./satelites/Nutz.sol');
-const Power = artifacts.require('./satelites/Power.sol');
+const Power = artifacts.require('./helpers/PowerMock.sol');
 const Storage = artifacts.require('./satelites/Storage.sol');
 const PullPayment = artifacts.require('./satelites/PullPayment.sol');
 const Controller = artifacts.require('./controller/Controller.sol');

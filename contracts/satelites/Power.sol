@@ -56,10 +56,6 @@ contract Power is Ownable, ERC20Basic {
     ControllerInterface(owner).downTick(_owner, _pos, now);
   }
 
-  function downTickTest(address _owner, uint256 _pos, uint256 _now) public {
-    ControllerInterface(owner).downTick(_owner, _pos, _now);
-  }
-
   function downs(address _owner) constant public returns (uint[3][10], int) {
     return ControllerInterface(owner).downs(_owner);
   }
