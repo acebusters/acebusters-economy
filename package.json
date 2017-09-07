@@ -1,6 +1,6 @@
 {
   "name": "acebusters-economy",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "description": "a token sale architecture that arguably has some nice safety properties",
   "author": "Johann Barbie",
   "license": "MIT",
