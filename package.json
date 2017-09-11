@@ -6,6 +6,7 @@
   "license": "MIT",
   "main": "truffle.js",
   "scripts": {
+    "clean": "rm -rf ./build && rm -rf /tmp/compiled_test_contracts/",
     "test": "scripts/test.sh",
     "coverage": "./node_modules/.bin/solidity-coverage"
   },

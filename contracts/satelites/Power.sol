@@ -11,7 +11,7 @@ contract Power is Ownable, ERC20Basic {
   string public name = "Acebusters Power";
   string public symbol = "ABP";
   uint256 public decimals = 12;
-                                    
+
 
   function balanceOf(address _holder) constant returns (uint256 balance) {
     return ControllerInterface(owner).powerBalanceOf(_holder);
@@ -52,16 +52,16 @@ contract Power is Ownable, ERC20Basic {
     return true;
   }
 
-  function downTick(uint256 _pos) public {
-    ControllerInterface(owner).downTick(_pos, now);
+  function downtime() public returns (uint256) {
+    ControllerInterface(owner).downtime;
   }
 
-  // !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!
-  // REMOVE THIS BEFORE DEPLOYMENT!!!!
-  // needed for accelerated time testing
-  function downTickTest(uint256 _pos, uint256 _now) public {
-    ControllerInterface(owner).downTick(_pos, _now);
+  function downTick(address _owner, uint256 _pos) public {
+    ControllerInterface(owner).downTick(_owner, _pos, now);
   }
-  // !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!
+
+  function downs(address _owner) constant public returns (uint[3][10], int) {
+    return ControllerInterface(owner).downs(_owner);
+  }
 
 }

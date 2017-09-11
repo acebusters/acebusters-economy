@@ -3,36 +3,60 @@ pragma solidity 0.4.11;
 import "../satelites/Power.sol";
 import "../satelites/Nutz.sol";
 import "./MarketEnabled.sol";
+import "./WithPowerDownRequests.sol";
 
-contract PowerEnabled is MarketEnabled {
+contract PowerEnabled is MarketEnabled, WithPowerDownRequests {
 
   // satelite contract addresses
   address public powerAddr;
+
+  // maxPower is a limit of total power that can be outstanding
+  // maxPower has a valid value between outstandingPower and authorizedPow/2
+  uint256 public maxPower = 0;
+
+  // time it should take to power down
+  uint256 public downtime;
 
   modifier onlyPower() {
     require(msg.sender == powerAddr);
     _;
   }
 
-  function PowerEnabled(address _powerAddr, address _pullAddr, address _storageAddr, address _nutzAddr) 
+  function PowerEnabled(address _powerAddr, address _pullAddr, address _storageAddr, address _nutzAddr)
     MarketEnabled(_pullAddr, _nutzAddr, _storageAddr) {
     powerAddr = _powerAddr;
   }
-
-  // maxPower is a limit of total power that can be outstanding
-  // maxPower has a valid value between outstandingPower and authorizedPow/2
-  uint256 public maxPower = 0;
 
   function setMaxPower(uint256 _maxPower) public onlyAdmins {
     require(outstandingPower() <= _maxPower && _maxPower < authorizedPower());
     maxPower = _maxPower;
   }
 
-  // time it should take to power down
-  uint256 public downtime;
-
   function setDowntime(uint256 _downtime) public onlyAdmins {
     downtime = _downtime;
+  }
+
+
+  // for public API return only 10 down requests, cause
+  // we cannot return dynamic array from public function.
+  // Number of requests (10) is arbitrary, feel free to adjust.
+  function _downRequests(address _user) internal returns (DownRequest[10], int) {
+    uint[10] memory packedRequests = Storage(storageAddr).getRequests('Power', _user);
+    return unpackRequestList(packedRequests);
+  }
+
+  function downs(address _user) constant public returns (uint[3][10], int) {
+    uint[10] memory packedRequests = Storage(storageAddr).getRequests('Power', _user);
+    return unpackRequestListForPublic(packedRequests);
+  }
+
+  function _setDownRequest(address _holder, uint _index, DownRequest _down) internal {
+    uint packedRequest = packDownRequestToUint(_down);
+    Storage(storageAddr).setRequestValue('Power', _holder, _index, packedRequest);
+  }
+
+  function _nullifyDownRequest(address _holder, uint _index) internal {
+    Storage(storageAddr).setRequestValue('Power', _holder, _index, 0);
   }
 
   // this is called when NTZ are deposited into the burn pool
@@ -66,16 +90,12 @@ contract PowerEnabled is MarketEnabled {
   }
 
   function slashDownRequest(uint256 _pos, address _holder, uint256 _value, bytes32 _data) public onlyAdmins {
-    DownRequest storage req = downs[_pos];
-    require(req.owner == _holder);
+    var (requests,) = _downRequests(_holder);
+    DownRequest memory req = requests[_pos];
     req.left = req.left.sub(_value);
+    _setDownRequest(_holder, _pos, req);
     _slashPower(_holder, _value, _data);
   }
-
-
-
-
-
 
   // this is called when NTZ are deposited into the power pool
   function powerUp(address _sender, address _from, uint256 _amountBabz) public onlyNutz whenNotPaused {
@@ -94,7 +114,7 @@ contract PowerEnabled is MarketEnabled {
     }
 
     _setOutstandingPower(outstandingPow.add(amountPow));
-    
+
     uint256 powBal = powerBalanceOf(_from).add(amountPow);
     require(powBal >= authorizedPow.div(10000)); // minShare = 10000
     _setPowerBalanceOf(_from, powBal);
@@ -104,32 +124,22 @@ contract PowerEnabled is MarketEnabled {
     Power(powerAddr).powerUp(_from, amountPow);
   }
 
-
-  // data structure for withdrawals
-  struct DownRequest {
-    address owner;
-    uint256 total;
-    uint256 left;
-    uint256 start;
-  }
-  DownRequest[] public downs;
-
   function powerTotalSupply() constant returns (uint256) {
     uint256 issuedPower = authorizedPower().div(2);
     // return max of maxPower or issuedPower
     return maxPower >= issuedPower ? maxPower : issuedPower;
   }
 
-  function vestedDown(uint256 _pos, uint256 _now) constant returns (uint256) {
-    if (downs.length <= _pos) {
+  function vestedDown(DownRequest[10] _downs, uint256 _pos, uint256 _now) internal constant returns (uint256) {
+    if (_downs.length <= _pos) {
       return 0;
     }
-    if (_now <= downs[_pos].start) {
+    if (_now <= _downs[_pos].start) {
       return 0;
     }
     // calculate amountVested
     // amountVested is amount that can be withdrawn according to time passed
-    DownRequest storage req = downs[_pos];
+    DownRequest memory req = _downs[_pos];
     uint256 timePassed = _now.sub(req.start);
     if (timePassed > downtime) {
      timePassed = downtime;
@@ -147,14 +157,16 @@ contract PowerEnabled is MarketEnabled {
     // when powering down, at least totalSupply/minShare Power should be claimed
     require(_amountPower >= authorizedPower().div(10000)); // minShare = 10000;
     _setPowerBalanceOf(_owner, powerBalanceOf(_owner).sub(_amountPower));
-    uint256 pos = downs.length++;
-    downs[pos] = DownRequest(_owner, _amountPower, _amountPower, now);
+    var (, freePos) = _downRequests(_owner);
+    require(freePos >= 0);
+    _setDownRequest(_owner, uint(freePos), DownRequest(_amountPower, _amountPower, now));
   }
 
   // executes a powerdown request
-  function downTick(uint256 _pos, uint256 _now) public onlyPower whenNotPaused {
-    uint256 amountPow = vestedDown(_pos, _now);
-    DownRequest storage req = downs[_pos];
+  function downTick(address _holder, uint256 _pos, uint256 _now) public onlyPower whenNotPaused {
+    var (_downs,) = _downRequests(_holder);
+    uint256 amountPow = vestedDown(_downs, _pos, _now);
+    DownRequest memory req = _downs[_pos];
 
     // prevent power down in tiny steps
     uint256 minStep = req.total.div(10);
@@ -168,17 +180,18 @@ contract PowerEnabled is MarketEnabled {
     req.left = req.left.sub(amountPow);
     _setPowerPool(powerPool().sub(amountBabz));
     _setActiveSupply(activeSupply().add(amountBabz));
-    _setBabzBalanceOf(req.owner, babzBalanceOf(req.owner).add(amountBabz));
-    Nutz(nutzAddr).powerDown(powerAddr, req.owner, amountBabz, onlyContractHolders);
+    _setBabzBalanceOf(_holder, babzBalanceOf(_holder).add(amountBabz));
+    _setDownRequest(_holder, _pos, req);
+    Nutz(nutzAddr).powerDown(powerAddr, _holder, amountBabz, onlyContractHolders);
 
     // down request completed
     if (req.left == 0) {
       // if not last element, switch with last
-      if (_pos < downs.length - 1) {
-        downs[_pos] = downs[downs.length - 1];
+      if (_pos < _downs.length - 1) {
+        _setDownRequest(_holder, _pos, _downs[_downs.length - 1]);
       }
       // then cut off the tail
-      downs.length--;
+      _nullifyDownRequest(_holder, _downs.length - 1);
     }
   }
 
