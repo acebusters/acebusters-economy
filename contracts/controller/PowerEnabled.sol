@@ -60,13 +60,13 @@ contract PowerEnabled is MarketEnabled, WithPowerDownRequests {
   }
 
   // this is called when NTZ are deposited into the burn pool
-  function dilutePower(uint256 _amountBabz) public onlyAdmins {
+  function dilutePower(uint256 _amountBabz, uint256 _amountPower) public onlyAdmins {
     uint256 authorizedPow = authorizedPower();
+    uint256 totalBabz = totalSupply();
     if (authorizedPow == 0) {
-      // during the first capital increase, set some big number as authorized shares
-      _setAuthorizedPower(totalSupply().add(_amountBabz));
+      // during the first capital increase, set value directly as authorized shares
+      _setAuthorizedPower((_amountPower > 0) ? _amountPower : _amountBabz.add(totalBabz));
     } else {
-      uint256 totalBabz = totalSupply();
       // in later increases, expand authorized shares at same rate like economy
       _setAuthorizedPower(authorizedPow.mul(totalBabz.add(_amountBabz)).div(totalBabz));
     }
