@@ -9,6 +9,7 @@ const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
 const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
+const POW_DECIMALS = new BigNumber(10).pow(12);
 const babz = (ntz) => new BigNumber(NTZ_DECIMALS).mul(ntz);
 const WEI_AMOUNT = web3.toWei(0.001, 'ether');
 const CEILING_PRICE = 20000;
@@ -40,9 +41,10 @@ contract('PowerEvent', (accounts) => {
     const softCap = WEI_AMOUNT;
     const hardCap = WEI_AMOUNT;
     const discountRate = 60000000000; // make ceiling 1,200,000,000
+    const amountPower = POW_DECIMALS.mul(630000).mul(2);
     const milestoneRecipients = [];
     const milestoneShares = [];
-    const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+    const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, amountPower, milestoneRecipients, milestoneShares);
     await controller.addAdmin(event1.address);
     await event1.tick();
     // event #1 - buyin
@@ -55,7 +57,7 @@ contract('PowerEvent', (accounts) => {
     const totalPow1 = await power.totalSupply.call();
     const founderPow1 = await power.balanceOf.call(FOUNDERS);
     assert.equal(founderPow1.toNumber(), totalPow1.toNumber());
-
+    assert.equal(totalPow1.toNumber(), POW_DECIMALS.mul(630000).toNumber());
 
     // prepare event #2
     const INVESTORS = accounts[2];
@@ -66,7 +68,7 @@ contract('PowerEvent', (accounts) => {
     const discountRate2 = 1500000; // 150% -> make ceiling 30,000
     const milestoneRecipients2 = [EXEC_BOARD, GOVERNING_COUNCIL];
     const milestoneShares2 = [200000, 5000]; // 20% and 0.5%
-    const event2 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap2, hardCap2, discountRate2, milestoneRecipients2, milestoneShares2);
+    const event2 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap2, hardCap2, discountRate2, 0, milestoneRecipients2, milestoneShares2);
     // event #2 - buy in
     await controller.addAdmin(event2.address);
     await event2.startCollection();
@@ -88,6 +90,7 @@ contract('PowerEvent', (accounts) => {
     const investorsPow = await power.balanceOf.call(INVESTORS);
     assert.equal(founderPow.toNumber(), totalPow.mul(0.7).toNumber());
     assert.equal(investorsPow.toNumber(), totalPow.mul(0.3).toNumber());
+    assert.equal(totalPow.toNumber(), POW_DECIMALS.mul(900000).toNumber());
   });
 
   it('should not allow to initilialize power event because of milestone length mismatch', async () => {
@@ -117,7 +120,7 @@ contract('PowerEvent', (accounts) => {
     const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
     const milestoneShares = [200000];
     try {
-      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, 0, milestoneRecipients, milestoneShares);
       assert.fail('should have thrown before');
     } catch(error) {
       assertJump(error);
@@ -151,7 +154,7 @@ contract('PowerEvent', (accounts) => {
     const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
     const milestoneShares = [200000, 5000];
     try {
-      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, 0, milestoneRecipients, milestoneShares);
       assert.fail('should have thrown before');
     } catch(error) {
       assertJump(error);
@@ -185,7 +188,7 @@ contract('PowerEvent', (accounts) => {
     const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
     const milestoneShares = [200000, 5000];
     try {
-      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, 0, milestoneRecipients, milestoneShares);
       assert.fail('should have thrown before');
     } catch(error) {
       assertJump(error);
@@ -219,7 +222,7 @@ contract('PowerEvent', (accounts) => {
     const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
     const milestoneShares = [1000001, 5000];
     try {
-      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, 0, milestoneRecipients, milestoneShares);
       assert.fail('should have thrown before');
     } catch(error) {
       assertJump(error);
@@ -253,7 +256,7 @@ contract('PowerEvent', (accounts) => {
     const milestoneRecipients = [web3.eth.accounts[0], web3.eth.accounts[1]];
     const milestoneShares = [600000, 40001];
     try {
-      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, milestoneRecipients, milestoneShares);
+      const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, 0, milestoneRecipients, milestoneShares);
       assert.fail('should have thrown before');
     } catch(error) {
       assertJump(error);
@@ -289,7 +292,7 @@ contract('PowerEvent', (accounts) => {
   const discountRate2 = 1500000; // 150% -> make ceiling 30,000
   const milestoneRecipients2 = [FOUNDERS, INVESTORS, EXEC_BOARD, GOVERNING_COUNCIL]; //setting receipients to max limit of 4
   const milestoneShares2 = [200000, 100000, 100000, 100000]; // 20%, 10%, 10% and 10%
-  const event2 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap2, hardCap2, discountRate2, milestoneRecipients2, milestoneShares2);
+  const event2 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap2, hardCap2, discountRate2, 0, milestoneRecipients2, milestoneShares2);
   // event - buy in
   await controller.addAdmin(event2.address);
   await event2.startCollection();

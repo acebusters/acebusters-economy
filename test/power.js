@@ -34,7 +34,7 @@ contract('Power', (accounts) => {
   });
 
   it('should init contract', async () => {
-    await controller.dilutePower(10000);
+    await controller.dilutePower(10000, 0);
     const authorizedShares = await power.totalSupply.call();
     assert.equal(authorizedShares.toNumber(), 5000, 'shares not authorized');
   });
@@ -47,7 +47,7 @@ contract('Power', (accounts) => {
     await controller.setDowntime(DOWNTIME);
     // get some NTZ for 1 ETH
     await nutz.purchase(CEILING_PRICE, {from: ALICE, value: WEI_AMOUNT });
-    await controller.dilutePower(0);
+    await controller.dilutePower(0, 0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
     const babzBalAlice = await nutz.balanceOf.call(ALICE);
@@ -112,7 +112,7 @@ contract('Power', (accounts) => {
     assert.equal(await nutz.balanceOf.call(FOUNDERS), expectedBal);
     // Founder Burn
     const totalBabz = await nutz.totalSupply.call();
-    await controller.dilutePower(totalBabz);
+    await controller.dilutePower(totalBabz, 0);
     const totalPow = await power.totalSupply.call();
     await controller.setMaxPower(totalPow);
     // Founder power up, 1 ETH to 50 percent
@@ -127,7 +127,7 @@ contract('Power', (accounts) => {
     // Invetors Burn
     const totalBabz2 = await nutz.totalSupply.call();
     const investorsBal = await nutz.balanceOf.call(INVESTORS);
-    await controller.dilutePower(totalBabz2.div(4));
+    await controller.dilutePower(totalBabz2.div(4), 0);
     const totalBabz3 = await nutz.totalSupply.call();
     const totalPow3 = await power.totalSupply.call();
     // Investor Power Up, ETH to 20 percent
@@ -165,7 +165,7 @@ contract('Power', (accounts) => {
 
     // get some NTZ for 1 ETH
     await nutz.purchase(CEILING_PRICE, {from: accounts[0], value: WEI_AMOUNT });
-    await controller.dilutePower(0);
+    await controller.dilutePower(0, 0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
 
@@ -189,7 +189,7 @@ contract('Power', (accounts) => {
 
     // get some NTZ for 1 ETH
     await nutz.purchase(CEILING_PRICE, { from: accounts[0], value: WEI_AMOUNT });
-    await controller.dilutePower(0);
+    await controller.dilutePower(0, 0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
     await nutz.powerUp(babz(15000));

@@ -170,7 +170,7 @@ contract('Nutz', (accounts) => {
     await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
 
     // initiate power pool
-    await controller.dilutePower(0);
+    await controller.dilutePower(0, 0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
 
@@ -199,7 +199,7 @@ contract('Nutz', (accounts) => {
       await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
 
       // initiate power pool
-      await controller.dilutePower(0);
+      await controller.dilutePower(0, 0);
       const authorizedPower = await power.totalSupply.call();
       await controller.setMaxPower(authorizedPower);
 
