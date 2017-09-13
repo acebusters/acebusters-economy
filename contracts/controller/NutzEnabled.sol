@@ -21,13 +21,6 @@ contract NutzEnabled is Pausable, StorageEnabled {
     nutzAddr = _nutzAddr;
   }
 
-  // this flag allows or denies deposits of NTZ into non-contract accounts
-  bool public onlyContractHolders;
-
-  function setOnlyContractHolders(bool _onlyContractHolders) public onlyAdmins {
-    onlyContractHolders = _onlyContractHolders;
-  }
-
   // ############################################
   // ########### NUTZ FUNCTIONS  ################
   // ############################################
@@ -61,16 +54,14 @@ contract NutzEnabled is Pausable, StorageEnabled {
     _setBabzBalanceOf(_to, babzBalanceOf(_to).add(_amountBabz));
   }
 
-  function transfer(address _from, address _to, uint256 _amountBabz, bytes _data) public onlyNutz whenNotPaused returns (bool) {
+  function transfer(address _from, address _to, uint256 _amountBabz, bytes _data) public onlyNutz whenNotPaused {
     _transfer(_from, _to, _amountBabz, _data);
-    return onlyContractHolders;
   }
 
-  function transferFrom(address _sender, address _from, address _to, uint256 _amountBabz, bytes _data) public onlyNutz whenNotPaused returns (bool) {
+  function transferFrom(address _sender, address _from, address _to, uint256 _amountBabz, bytes _data) public onlyNutz whenNotPaused {
     require(_from != _to);
     allowed[_from][_sender] = allowed[_from][_sender].sub(_amountBabz);
     _transfer(_from, _to, _amountBabz, _data);
-    return onlyContractHolders;
   }
 
 }

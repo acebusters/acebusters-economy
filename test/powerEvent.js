@@ -30,7 +30,6 @@ contract('PowerEvent', (accounts) => {
     await controller.unpause();
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
-    await controller.setOnlyContractHolders(false);
 
 
     // prepare event #1
@@ -106,7 +105,6 @@ contract('PowerEvent', (accounts) => {
     await controller.unpause();
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
-    await controller.setOnlyContractHolders(false);
 
 
     // prepare event #1
@@ -140,7 +138,6 @@ contract('PowerEvent', (accounts) => {
     await controller.unpause();
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
-    await controller.setOnlyContractHolders(false);
 
 
     // prepare event #1
@@ -174,7 +171,6 @@ contract('PowerEvent', (accounts) => {
     await controller.unpause();
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
-    await controller.setOnlyContractHolders(false);
 
 
     // prepare event #1
@@ -208,7 +204,6 @@ contract('PowerEvent', (accounts) => {
     await controller.unpause();
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
-    await controller.setOnlyContractHolders(false);
 
 
     // prepare event #1
@@ -242,7 +237,6 @@ contract('PowerEvent', (accounts) => {
     await controller.unpause();
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
-    await controller.setOnlyContractHolders(false);
 
 
     // prepare event #1
@@ -276,7 +270,6 @@ contract('PowerEvent', (accounts) => {
   await controller.unpause();
   await controller.moveFloor(INFINITY);
   await controller.moveCeiling(CEILING_PRICE);
-  await controller.setOnlyContractHolders(false);
 
 
   // prepare event

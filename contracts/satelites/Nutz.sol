@@ -61,7 +61,7 @@ contract Nutz is Ownable, ERC20 {
   }
 
 
-  function _checkDestination(address _from, address _to, uint256 _value, bytes _data, bool _onlyContractHolders) internal {
+  function _checkDestination(address _from, address _to, uint256 _value, bytes _data) internal {
     // erc223: Retrieve the size of the code on target address, this needs assembly .
     uint256 codeLength;
     assembly {
@@ -71,8 +71,6 @@ contract Nutz is Ownable, ERC20 {
       ERC223ReceivingContract untrustedReceiver = ERC223ReceivingContract(_to);
       // untrusted contract call
       untrustedReceiver.tokenFallback(_from, _value, _data);
-    } else {
-      require(_onlyContractHolders == false);
     }
   }
 
@@ -82,11 +80,11 @@ contract Nutz is Ownable, ERC20 {
   // ########### ADMIN FUNCTIONS ################
   // ############################################
 
-  function powerDown(address powerAddr, address _holder, uint256 _amountBabz, bool _onlyContractHolders) onlyOwner {
+  function powerDown(address powerAddr, address _holder, uint256 _amountBabz) onlyOwner {
     // NTZ transfered from power pool to user's balance
     Transfer(powerAddr, _holder, _amountBabz);
     bytes memory empty;
-    _checkDestination(powerAddr, _holder, _amountBabz, empty, _onlyContractHolders);
+    _checkDestination(powerAddr, _holder, _amountBabz, empty);
   }
 
 
@@ -101,14 +99,10 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function transfer(address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
-    if (_to == 0x0) {
-      // powerup
-      ControllerInterface(owner).powerUp(msg.sender, msg.sender, _amountBabz);
-    } else {
-      bool onlyContractHolders = ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
-      Transfer(msg.sender, _to, _amountBabz);
-      _checkDestination(msg.sender, _to, _amountBabz, _data, onlyContractHolders);
-    }
+    require(_to != address(0));
+    ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
+    Transfer(msg.sender, _to, _amountBabz);
+    _checkDestination(msg.sender, _to, _amountBabz, _data);
     return true;
   }
 
@@ -122,14 +116,10 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function transferFrom(address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
-    if (_to == 0x0) {
-      // powerup
-      ControllerInterface(owner).powerUp(msg.sender, _from, _amountBabz);
-    } else {
-      bool onlyContractHolders = ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz, _data);
-      Transfer(_from, _to, _amountBabz);
-      _checkDestination(_from, _to, _amountBabz, _data, onlyContractHolders);
-    }
+    require(_to != address(0));
+    ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz, _data);
+    Transfer(_from, _to, _amountBabz);
+    _checkDestination(_from, _to, _amountBabz, _data);
     return true;
   }
 
@@ -140,12 +130,10 @@ contract Nutz is Ownable, ERC20 {
 
   function purchase(uint256 _price) public payable {
     require(msg.value > 0);
-    uint256 amountBabz;
-    bool onlyContractHolders;
-    (amountBabz, onlyContractHolders) = ControllerInterface(owner).purchase.value(msg.value)(msg.sender, _price);
+    uint256 amountBabz = ControllerInterface(owner).purchase.value(msg.value)(msg.sender, _price);
     Purchase(msg.sender, amountBabz);
     bytes memory empty;
-    _checkDestination(address(this), msg.sender, amountBabz, empty, onlyContractHolders);
+    _checkDestination(address(this), msg.sender, amountBabz, empty);
   }
 
   function sell(uint256 _price, uint256 _amountBabz) public {
