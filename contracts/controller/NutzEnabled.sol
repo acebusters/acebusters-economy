@@ -2,7 +2,7 @@ pragma solidity 0.4.11;
 
 import "../SafeMath.sol";
 import "./StorageEnabled.sol";
-import "../Pausable.sol";
+import "../ownership/Pausable.sol";
 
 contract NutzEnabled is Pausable, StorageEnabled {
   using SafeMath for uint;
