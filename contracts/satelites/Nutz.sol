@@ -144,6 +144,7 @@ contract Nutz is Ownable, ERC20 {
     bool onlyContractHolders;
     (amountBabz, onlyContractHolders) = ControllerInterface(owner).purchase.value(msg.value)(msg.sender, _price);
     Purchase(msg.sender, amountBabz);
+    Transfer(owner, msg.sender, amountBabz);
     bytes memory empty;
     _checkDestination(address(this), msg.sender, amountBabz, empty, onlyContractHolders);
   }
