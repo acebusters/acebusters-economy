@@ -182,7 +182,7 @@ contract PowerEnabled is MarketEnabled, WithPowerDownRequests {
     _setActiveSupply(activeSupply().add(amountBabz));
     _setBabzBalanceOf(_holder, babzBalanceOf(_holder).add(amountBabz));
     _setDownRequest(_holder, _pos, req);
-    Nutz(nutzAddr).powerDown(powerAddr, _holder, amountBabz, onlyContractHolders);
+    Nutz(nutzAddr).powerDown(powerAddr, _holder, amountBabz);
 
     // down request completed
     if (req.left == 0) {

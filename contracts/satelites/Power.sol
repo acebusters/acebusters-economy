@@ -13,7 +13,7 @@ contract Power is Ownable, ERC20Basic {
   uint256 public decimals = 12;
 
 
-  function balanceOf(address _holder) constant returns (uint256 balance) {
+  function balanceOf(address _holder) constant returns (uint256) {
     return ControllerInterface(owner).powerBalanceOf(_holder);
   }
 

@@ -24,7 +24,6 @@ contract UpgradeEvent {
   address powerAddr;
   uint256 maxPower;
   uint256 downtime;
-  bool onlyContractHolders;
   uint256 purchasePrice;
   uint256 salePrice;
 
@@ -67,7 +66,6 @@ contract UpgradeEvent {
     powerAddr = old.powerAddr();
     maxPower = old.maxPower();
     downtime = old.downtime();
-    onlyContractHolders = old.onlyContractHolders();
     purchasePrice = old.ceiling();
     salePrice = old.floor();
     // kill old controller, sending all ETH to new controller
@@ -96,7 +94,6 @@ contract UpgradeEvent {
       next.setMaxPower(maxPower);
     }
     next.setDowntime(downtime);
-    next.setOnlyContractHolders(onlyContractHolders);
     next.moveFloor(salePrice);
     next.moveCeiling(purchasePrice);
     next.unpause();

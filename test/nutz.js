@@ -265,20 +265,6 @@ contract('Nutz', (accounts) => {
     assert(isCalled, 'erc223 interface has not been invoked on purchase');
   });
 
-  it('should allow to disable transfer to non-contract accounts.', async () => {
-    await controller.moveFloor(INFINITY);
-    await controller.moveCeiling(1500);
-    await nutz.purchase(1500, {from: accounts[0], value: ONE_ETH });
-    const bal = await nutz.balanceOf.call(accounts[0]);
-    await controller.setOnlyContractHolders(true);
-    try {
-      await nutz.transfer(accounts[1], bal.div(2), "0x00");
-    } catch(error) {
-      return assertJump(error);
-    }
-    assert.fail('should have thrown before');
-  });
-
   it('should adjust getFloor automatically when active supply inflated', async () => {
     // set initial sell price to 1 NTZ
     const initialFloorPrice = new BigNumber(1);
