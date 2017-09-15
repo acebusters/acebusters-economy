@@ -8,19 +8,9 @@ contract Storage is Ownable {
         mapping(bytes32 => address) addresses;
         mapping(bytes32 => bool) bools;
         mapping(address => uint256) bals;
-        mapping(address => uint[10]) requests;
     }
 
     mapping(bytes32 => Crate) crates;
-
-    function getRequests(bytes32 _crate, address _key) constant returns(uint[10]) {
-        return crates[_crate].requests[_key];
-    }
-
-    function setRequestValue(bytes32 _crate, address _key, uint _index, uint value) onlyOwner {
-      require(_index < 10);
-      crates[_crate].requests[_key][_index] = value;
-    }
 
     function setUInt(bytes32 _crate, bytes32 _key, uint256 _value) onlyOwner {
         crates[_crate].uints[_key] = _value;

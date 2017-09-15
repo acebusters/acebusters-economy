@@ -84,7 +84,7 @@ contract('Power', (accounts) => {
     const babzBalAliceBefore = await nutz.balanceOf.call(ALICE);
     const babzActiveBefore = await nutz.activeSupply.call();
     await power.transfer(0x0, pow20pc);
-    await power.downTickTest(ALICE, 0, (Date.now() / 1000 | 0) + DOWNTIME);
+    await power.downTickTest(ALICE, (Date.now() / 1000 | 0) + DOWNTIME);
     const powBalAliceAfter = await power.balanceOf.call(ALICE);
     assert.equal(powBalAliceAfter.toNumber(), pow20pc.toNumber(), 'power down failed in Power contract');
     // check balances in token contract
@@ -197,14 +197,9 @@ contract('Power', (accounts) => {
     await power.transfer(0, balancePow, "0x00");
     let downs = await controller.downs.call(accounts[0]);
 
-    // check number of power downs
-    assert.equal(downs[1], 1, "Just one power down expected");
-    // check "total" of the "second" power down. It should not exist, hence we expect 0
-    assert.equal(downs[0][1][0], 0, "Only one power down expected")
-    let powerDown = downs[0][0];
-    assert.equal(powerDown[0].toNumber(), babz(15000).toNumber(), "Total amount");
-    assert.equal(powerDown[1].toNumber(), babz(15000).toNumber(), "Left amount");
-    assert(powerDown[2].toNumber() > 0, "Power down start timestamp");
+    assert.equal(downs[0].toNumber(), babz(15000).toNumber(), "Total amount");
+    assert.equal(downs[1].toNumber(), babz(15000).toNumber(), "Left amount");
+    assert(downs[2].toNumber() > 0, "Power down start timestamp");
   });
 
 });
