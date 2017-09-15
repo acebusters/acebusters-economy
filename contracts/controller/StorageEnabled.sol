@@ -79,4 +79,18 @@ contract StorageEnabled {
     Storage(storageAddr).setUInt('Power', 'authorizedPower', _newAuthorizedPower);
   }
 
+
+  function downs(address _user) constant public returns (uint256 total, uint256 left, uint256 start) {
+    uint256 rawBytes = Storage(storageAddr).getBal('PowerDown', _user);
+    start = uint64(rawBytes);
+    left = uint96(rawBytes >> (64));
+    total = uint96(rawBytes >> (96 + 64));
+    return;
+  }
+
+  function _setDownRequest(address _holder, uint256 total, uint256 left, uint256 start) internal {
+    uint256 result = uint64(start) + (left << 64) + (total << (96 + 64));
+    Storage(storageAddr).setBal('PowerDown', _holder, result);
+  }
+
 }

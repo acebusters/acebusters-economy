@@ -58,7 +58,7 @@ contract('Nutz', (accounts) => {
     assert.equal(babzBalance.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
     const supplyBabz = await nutz.activeSupply.call();
     assert.equal(supplyBabz.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued');
-    const reserveWei = web3.eth.getBalance(controller.address);
+    const reserveWei = web3.eth.getBalance(nutz.address);
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'ether wasn\'t sent to contract');
   });
 
@@ -79,7 +79,7 @@ contract('Nutz', (accounts) => {
     assert.equal(babzBalance.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
     const supplyBabz = await nutz.activeSupply.call();
     assert.equal(supplyBabz.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued');
-    const reserveWei = web3.eth.getBalance(controller.address);
+    const reserveWei = web3.eth.getBalance(nutz.address);
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'ether wasn\'t sent to contract');
   });
 
@@ -116,7 +116,7 @@ contract('Nutz', (accounts) => {
     let allocationWei = await pull.balanceOf.call(accounts[0]);
     const HALF_ETH = web3.toWei(0.5, 'ether');
     assert.equal(allocationWei.toString(), HALF_ETH, 'ether wasn\'t allocated for withdrawal');
-    const reserveWei = web3.eth.getBalance(controller.address);
+    const reserveWei = web3.eth.getBalance(nutz.address);
     assert.equal(reserveWei.toString(), HALF_ETH, 'ether allocation wasn\'t deducted from reserve');
     // pull the ether from the account
     const before = web3.eth.getBalance(accounts[0]);
@@ -144,7 +144,7 @@ contract('Nutz', (accounts) => {
     let allocationWeiBefore = await pull.balanceOf.call(accounts[0]);
     const HALF_ETH = web3.toWei(0.5, 'ether');
     assert.equal(allocationWeiBefore.toString(), HALF_ETH, 'ether wasn\'t allocated for withdrawal');
-    const reserveWei = web3.eth.getBalance(controller.address);
+    const reserveWei = web3.eth.getBalance(nutz.address);
     assert.equal(reserveWei.toString(), HALF_ETH, 'ether allocation wasn\'t deducted from reserve');
     // pull the ether from the account
     const before = web3.eth.getBalance(accounts[0]);
@@ -170,7 +170,7 @@ contract('Nutz', (accounts) => {
     await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
 
     // initiate power pool
-    await controller.dilutePower(0);
+    await controller.dilutePower(0, 0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
 
@@ -199,7 +199,7 @@ contract('Nutz', (accounts) => {
       await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
 
       // initiate power pool
-      await controller.dilutePower(0);
+      await controller.dilutePower(0, 0);
       const authorizedPower = await power.totalSupply.call();
       await controller.setMaxPower(authorizedPower);
 
@@ -265,20 +265,6 @@ contract('Nutz', (accounts) => {
     assert(isCalled, 'erc223 interface has not been invoked on purchase');
   });
 
-  it('should allow to disable transfer to non-contract accounts.', async () => {
-    await controller.moveFloor(INFINITY);
-    await controller.moveCeiling(1500);
-    await nutz.purchase(1500, {from: accounts[0], value: ONE_ETH });
-    const bal = await nutz.balanceOf.call(accounts[0]);
-    await controller.setOnlyContractHolders(true);
-    try {
-      await nutz.transfer(accounts[1], bal.div(2), "0x00");
-    } catch(error) {
-      return assertJump(error);
-    }
-    assert.fail('should have thrown before');
-  });
-
   it('should adjust getFloor automatically when active supply inflated', async () => {
     // set initial sell price to 1 NTZ
     const initialFloorPrice = new BigNumber(1);
@@ -305,7 +291,7 @@ contract('Nutz', (accounts) => {
     // purchase NTZ for 1 ETH
     await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     const floor = await controller.floor.call();
-    const reserveWei = web3.eth.getBalance(controller.address);
+    const reserveWei = web3.eth.getBalance(nutz.address);
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'reserve incorrect');
     const babzBalance = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalance.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'token wasn\'t issued to account');
@@ -346,7 +332,7 @@ contract('Nutz', (accounts) => {
       assert.equal(babzBalanceAfter.toNumber(), babzBalanceBefore, 'balance should stay same after failed purchase');
       const supplyBabz = await nutz.activeSupply.call();
       assert.equal(supplyBabz.toNumber(), babzBalanceBefore, 'activeSupply should stay same after failed purchase');
-      const reserveWei = web3.eth.getBalance(controller.address);
+      const reserveWei = web3.eth.getBalance(nutz.address);
       assert.equal(reserveWei.toNumber(), ONE_ETH, 'ether should not have been deposited');
     }
   });
@@ -358,7 +344,7 @@ contract('Nutz', (accounts) => {
     await controller.moveCeiling(ceiling);
     await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     let supplyBabz = await nutz.activeSupply.call(accounts[0]);
-    const reserveWei = web3.eth.getBalance(controller.address);
+    const reserveWei = web3.eth.getBalance(nutz.address);
     assert.equal(supplyBabz.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'amount wasn\'t issued to account');
     // move ceiling so we can move floor
     await controller.moveCeiling(2000);
@@ -383,7 +369,7 @@ contract('Nutz', (accounts) => {
 
     await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
     const floor = await controller.floor.call();
-    const reserveWei = web3.eth.getBalance(controller.address);
+    const reserveWei = web3.eth.getBalance(nutz.address);
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'reserve incorrect');
     const babzBalance = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalance.toNumber(), ceiling.mul(ONE_ETH).div(PRICE_FACTOR).toNumber(), 'token wasn\'t issued to account');

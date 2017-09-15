@@ -12,7 +12,6 @@ contract Storage is Ownable {
 
     mapping(bytes32 => Crate) crates;
 
-
     function setUInt(bytes32 _crate, bytes32 _key, uint256 _value) onlyOwner {
         crates[_crate].uints[_key] = _value;
     }
@@ -28,7 +27,7 @@ contract Storage is Ownable {
     function getAddress(bytes32 _crate, bytes32 _key) constant returns(address) {
         return crates[_crate].addresses[_key];
     }
-    
+
     function setBool(bytes32 _crate, bytes32 _key, bool _value) onlyOwner {
         crates[_crate].bools[_key] = _value;
     }
@@ -36,7 +35,7 @@ contract Storage is Ownable {
     function getBool(bytes32 _crate, bytes32 _key) constant returns(bool) {
         return crates[_crate].bools[_key];
     }
-    
+
     function setBal(bytes32 _crate, address _key, uint256 _value) onlyOwner {
         crates[_crate].bals[_key] = _value;
     }

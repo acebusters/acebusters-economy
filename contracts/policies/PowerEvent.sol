@@ -24,16 +24,18 @@ contract PowerEvent {
   uint256 public softCap;
   uint256 public hardCap;
   uint256 public discountRate; // if rate 30%, this will be 300,000
+  uint256 public amountPower;
   address[] public milestoneRecipients;
   uint256[] public milestoneShares;
 
   // Params
   address public controllerAddr;
   address public powerAddr;
+  address public nutzAddr;
   uint256 public initialReserve;
   uint256 public initialSupply;
 
-  function PowerEvent(address _controllerAddr, uint256 _startTime, uint256 _minDuration, uint256 _maxDuration, uint256 _softCap, uint256 _hardCap, uint256 _discount, address[] _milestoneRecipients, uint256[] _milestoneShares)
+  function PowerEvent(address _controllerAddr, uint256 _startTime, uint256 _minDuration, uint256 _maxDuration, uint256 _softCap, uint256 _hardCap, uint256 _discount, uint256 _amountPower, address[] _milestoneRecipients, uint256[] _milestoneShares)
   areValidMileStones(_milestoneRecipients, _milestoneShares) {
     require(_minDuration <= _maxDuration);
     require(_softCap <= _hardCap);
@@ -44,6 +46,7 @@ contract PowerEvent {
     softCap = _softCap;
     hardCap = _hardCap;
     discountRate = _discount;
+    amountPower = _amountPower;
     state = EventState.Waiting;
     milestoneRecipients = _milestoneRecipients;
     milestoneShares = _milestoneShares;
@@ -91,8 +94,9 @@ contract PowerEvent {
     // read initial values
     var contr = Controller(controllerAddr);
     powerAddr = contr.powerAddr();
+    nutzAddr = contr.nutzAddr();
     initialSupply = contr.activeSupply().add(contr.powerPool()).add(contr.burnPool());
-    initialReserve = controllerAddr.balance;
+    initialReserve = nutzAddr.balance;
     uint256 ceiling = contr.ceiling();
     // move ceiling
     uint256 newCeiling = ceiling.mul(discountRate).div(RATE_FACTOR);
@@ -102,7 +106,7 @@ contract PowerEvent {
   }
 
   function stopCollection() isState(EventState.Collecting) {
-    uint256 collected = controllerAddr.balance.sub(initialReserve);
+    uint256 collected = nutzAddr.balance.sub(initialReserve);
     if (now > startTime.add(maxDuration)) {
       if (collected >= softCap) {
         // softCap reached, close
@@ -147,13 +151,13 @@ contract PowerEvent {
     // dilute power
     uint256 totalSupply = contr.activeSupply().add(contr.powerPool()).add(contr.burnPool());
     uint256 newSupply = totalSupply.sub(initialSupply);
-    contr.dilutePower(newSupply);
+    contr.dilutePower(newSupply, amountPower);
     // set max power
     var PowerContract = ERC20(powerAddr);
     uint256 authorizedPower = PowerContract.totalSupply();
     contr.setMaxPower(authorizedPower);
     // pay out milestone
-    uint256 collected = controllerAddr.balance.sub(initialReserve);
+    uint256 collected = nutzAddr.balance.sub(initialReserve);
     for (uint256 i = 0; i < milestoneRecipients.length; i++) {
       uint256 payoutAmount = collected.mul(milestoneShares[i]).div(RATE_FACTOR);
       contr.allocateEther(payoutAmount, milestoneRecipients[i]);

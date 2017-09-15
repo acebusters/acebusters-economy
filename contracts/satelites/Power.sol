@@ -11,9 +11,9 @@ contract Power is Ownable, ERC20Basic {
   string public name = "Acebusters Power";
   string public symbol = "ABP";
   uint256 public decimals = 12;
-                                    
 
-  function balanceOf(address _holder) constant returns (uint256 balance) {
+
+  function balanceOf(address _holder) constant returns (uint256) {
     return ControllerInterface(owner).powerBalanceOf(_holder);
   }
 
@@ -36,7 +36,7 @@ contract Power is Ownable, ERC20Basic {
 
   function powerUp(address _holder, uint256 _value) public onlyOwner {
     // NTZ transfered from user's balance to power pool
-    Transfer(0x0, _holder, _value);
+    Transfer(address(0), _holder, _value);
   }
 
   // ############################################
@@ -46,22 +46,22 @@ contract Power is Ownable, ERC20Basic {
   // registers a powerdown request
   function transfer(address _to, uint256 _amountPower) public returns (bool success) {
     // make Power not transferable
-    require(_to == 0x0);
+    require(_to == address(0));
     ControllerInterface(owner).createDownRequest(msg.sender, _amountPower);
-    Transfer(msg.sender, 0x0, _amountPower);
+    Transfer(msg.sender, address(0), _amountPower);
     return true;
   }
 
-  function downTick(uint256 _pos) public {
-    ControllerInterface(owner).downTick(_pos, now);
+  function downtime() public returns (uint256) {
+    ControllerInterface(owner).downtime;
   }
 
-  // !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!
-  // REMOVE THIS BEFORE DEPLOYMENT!!!!
-  // needed for accelerated time testing
-  function downTickTest(uint256 _pos, uint256 _now) public {
-    ControllerInterface(owner).downTick(_pos, _now);
+  function downTick(address _owner) public {
+    ControllerInterface(owner).downTick(_owner, now);
   }
-  // !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!
+
+  function downs(address _owner) constant public returns (uint256, uint256, uint256) {
+    return ControllerInterface(owner).downs(_owner);
+  }
 
 }

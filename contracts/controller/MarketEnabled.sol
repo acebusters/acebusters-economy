@@ -2,6 +2,7 @@ pragma solidity 0.4.11;
 
 import "../satelites/PullPayment.sol";
 import "./NutzEnabled.sol";
+import "../satelites/Nutz.sol";
 
 contract MarketEnabled is NutzEnabled {
 
@@ -30,10 +31,10 @@ contract MarketEnabled is NutzEnabled {
   // returns either the salePrice, or if reserve does not suffice
   // for active supply, returns maxFloor
   function floor() constant returns (uint256) {
-    if (this.balance == 0) {
+    if (nutzAddr.balance == 0) {
       return INFINITY;
     }
-    uint256 maxFloor = activeSupply().mul(1000000).div(this.balance); // 1,000,000 WEI, used as price factor
+    uint256 maxFloor = activeSupply().mul(1000000).div(nutzAddr.balance); // 1,000,000 WEI, used as price factor
     // return max of maxFloor or salePrice
     return maxFloor >= salePrice ? maxFloor : salePrice;
   }
@@ -49,17 +50,17 @@ contract MarketEnabled is NutzEnabled {
     // that the sale mechanism is no longer able to buy back all tokens at
     // the floor price if those funds were to be withdrawn.
     if (_newSalePrice < INFINITY) {
-      require(this.balance >= activeSupply().mul(1000000).div(_newSalePrice)); // 1,000,000 WEI, used as price factor
+      require(nutzAddr.balance >= activeSupply().mul(1000000).div(_newSalePrice)); // 1,000,000 WEI, used as price factor
     }
     salePrice = _newSalePrice;
   }
 
-  function purchase(address _sender, uint256 _price) public onlyNutz payable whenNotPaused returns (uint256, bool) {
+  function purchase(address _sender, uint256 _value, uint256 _price) public onlyNutz whenNotPaused returns (uint256) {
     // disable purchases if purchasePrice set to 0
     require(purchasePrice > 0);
     require(_price == purchasePrice);
 
-    uint256 amountBabz = purchasePrice.mul(msg.value).div(1000000); // 1,000,000 WEI, used as price factor
+    uint256 amountBabz = purchasePrice.mul(_value).div(1000000); // 1,000,000 WEI, used as price factor
     // avoid deposits that issue nothing
     // might happen with very high purchase price
     require(amountBabz > 0);
@@ -73,7 +74,7 @@ contract MarketEnabled is NutzEnabled {
     }
     _setActiveSupply(activeSup.add(amountBabz));
     _setBabzBalanceOf(_sender, babzBalanceOf(_sender).add(amountBabz));
-    return (amountBabz, onlyContractHolders);
+    return amountBabz;
   }
 
   function sell(address _from, uint256 _price, uint256 _amountBabz) public onlyNutz whenNotPaused {
@@ -93,8 +94,7 @@ contract MarketEnabled is NutzEnabled {
     }
     _setActiveSupply(activeSup.sub(_amountBabz));
     _setBabzBalanceOf(_from, babzBalanceOf(_from).sub(_amountBabz));
-    assert(amountWei <= this.balance);
-    PullPayment(pullAddr).asyncSend.value(amountWei)(_from);
+    Nutz(nutzAddr).asyncSend(pullAddr, _from, amountWei);
   }
 
 
@@ -104,8 +104,8 @@ contract MarketEnabled is NutzEnabled {
     // allocateEther fails if allocating those funds would mean that the
     // sale mechanism is no longer able to buy back all tokens at the floor
     // price if those funds were to be withdrawn.
-    require(this.balance.sub(_amountWei) >= activeSupply().mul(1000000).div(salePrice)); // 1,000,000 WEI, used as price factor
-    PullPayment(pullAddr).asyncSend.value(_amountWei)(_beneficiary);
+    require(nutzAddr.balance.sub(_amountWei) >= activeSupply().mul(1000000).div(salePrice)); // 1,000,000 WEI, used as price factor
+    Nutz(nutzAddr).asyncSend(pullAddr, _beneficiary, _amountWei);
   }
 
 }
