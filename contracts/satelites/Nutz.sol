@@ -4,6 +4,8 @@ import "../ERC20.sol";
 import "../ownership/Ownable.sol";
 import "../controller/ControllerInterface.sol";
 import "../ERC223ReceivingContract.sol";
+import "../PullPayInterface.sol";
+
 
 /**
  * Nutz implements a price floor and a price ceiling on the token being
@@ -80,13 +82,18 @@ contract Nutz is Ownable, ERC20 {
   // ########### ADMIN FUNCTIONS ################
   // ############################################
 
-  function powerDown(address powerAddr, address _holder, uint256 _amountBabz) onlyOwner {
-    // NTZ transfered from power pool to user's balance
-    Transfer(powerAddr, _holder, _amountBabz);
+  function powerDown(address powerAddr, address _holder, uint256 _amountBabz) public onlyOwner {
     bytes memory empty;
     _checkDestination(powerAddr, _holder, _amountBabz, empty);
+    // NTZ transfered from power pool to user's balance
+    Transfer(powerAddr, _holder, _amountBabz);
   }
 
+
+  function asyncSend(address _pullAddr, address _dest, uint256 _amountWei) public onlyOwner {
+    assert(_amountWei <= this.balance);
+    PullPayInterface(_pullAddr).asyncSend.value(_amountWei)(_dest);
+  }
 
 
   // ############################################
@@ -130,7 +137,7 @@ contract Nutz is Ownable, ERC20 {
 
   function purchase(uint256 _price) public payable {
     require(msg.value > 0);
-    uint256 amountBabz = ControllerInterface(owner).purchase.value(msg.value)(msg.sender, _price);
+    uint256 amountBabz = ControllerInterface(owner).purchase(msg.sender, msg.value, _price);
     Purchase(msg.sender, amountBabz);
     Transfer(owner, msg.sender, amountBabz);
     bytes memory empty;

@@ -1,7 +1,6 @@
 pragma solidity 0.4.11;
 
 import "../satelites/Power.sol";
-import "../satelites/Nutz.sol";
 import "./MarketEnabled.sol";
 import "./WithPowerDownRequests.sol";
 

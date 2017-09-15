@@ -89,7 +89,7 @@ contract('MarketEnabled', (accounts) => {
         // purchase some tokens with 1 ether
         await nutz.purchase(sellPrice, { from: accounts[0], value: ONE_ETH });
 
-        const reserveWei = web3.eth.getBalance(market.address);
+        const reserveWei = web3.eth.getBalance(nutz.address);
         assert.equal(reserveWei.toNumber(), ONE_ETH, '1 ETH should be sent to contract');
       });
 

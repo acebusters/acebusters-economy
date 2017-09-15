@@ -49,7 +49,7 @@ contract PullPayment is Ownable {
     payments[_owner].date = _newDate;
   }
 
-  function asyncSend(address _dest) public payable onlyOwner {
+  function asyncSend(address _dest) public payable {
     require(msg.value > 0);
     uint256 newValue = payments[_dest].value.add(msg.value);
     uint256 newDate;
