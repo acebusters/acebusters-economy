@@ -141,7 +141,7 @@ contract('Power', (accounts) => {
     const floor = await controller.floor.call();
     const ceiling = await controller.ceiling.call();
     const totalReserve = web3.toWei(8, 'ether');
-    const weiReserve = web3.eth.getBalance(controller.address);
+    const weiReserve = web3.eth.getBalance(nutz.address);
     assert.equal(weiReserve.toNumber(), totalReserve, 'reserve incorrect');
     // payout 10 percent
     const payoutAmount = totalReserve/2;

@@ -20,10 +20,16 @@ contract PullPayment is Ownable {
   // 8bytes date, 24 bytes value
   mapping(address => uint256) internal payments;
 
+  modifier onlyNutz() {
+    require(msg.sender == ControllerInterface(owner).nutzAddr());
+    _;
+  }
+
   modifier whenNotPaused () {
     require(!ControllerInterface(owner).paused());
      _;
   }
+
   function balanceOf(address _owner) constant returns (uint256 value) {
     return uint192(payments[_owner]);
   }
@@ -46,7 +52,7 @@ contract PullPayment is Ownable {
     payments[_owner] = (_newDate << 192) + uint192(payments[_owner]);
   }
 
-  function asyncSend(address _dest) public payable onlyOwner {
+  function asyncSend(address _dest) public payable onlyNutz {
     require(msg.value > 0);
     uint256 newValue = msg.value.add(uint192(payments[_dest]));
     uint256 newDate;

@@ -53,7 +53,7 @@ contract('UpgradeEvent', (accounts) => {
     const babzBalAfter = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalAfter.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
     // check eth migrated
-    const reserveWei = web3.eth.getBalance(nextController.address);
+    const reserveWei = web3.eth.getBalance(nutz.address);
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'ether wasn\'t sent to contract');
     // check transfers with next controller
     await nutz.transfer(accounts[1], babzBalAfter);

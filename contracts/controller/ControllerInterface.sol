@@ -5,6 +5,7 @@ contract ControllerInterface {
 
   // State Variables
   bool public paused;
+  address public nutzAddr;
 
   // Nutz functions
   function babzBalanceOf(address _owner) constant returns (uint256);
@@ -22,8 +23,8 @@ contract ControllerInterface {
   function floor() constant returns (uint256);
   function ceiling() constant returns (uint256);
 
-  function purchase(address _sender, uint256 _price) public payable returns (uint256);
-  function sell(address _from, uint256 _price, uint256 _amountBabz) public;
+  function purchase(address _sender, uint256 _value, uint256 _price) public returns (uint256);
+  function sell(address _from, uint256 _price, uint256 _amountBabz);
 
   // Power functions
   function powerBalanceOf(address _owner) constant returns (uint256);
