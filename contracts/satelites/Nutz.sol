@@ -13,7 +13,6 @@ import "../PullPayInterface.sol";
  */
 contract Nutz is Ownable, ERC20 {
 
-  event Purchase(address indexed purchaser, uint256 value);
   event Sell(address indexed seller, uint256 value);
 
   string public name = "Acebusters Nutz";
@@ -106,7 +105,6 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function transfer(address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
-    require(_to != address(0));
     ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
     Transfer(msg.sender, _to, _amountBabz);
     _checkDestination(msg.sender, _to, _amountBabz, _data);
@@ -123,7 +121,6 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function transferFrom(address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
-    require(_to != address(0));
     ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz, _data);
     Transfer(_from, _to, _amountBabz);
     _checkDestination(_from, _to, _amountBabz, _data);
@@ -138,7 +135,6 @@ contract Nutz is Ownable, ERC20 {
   function purchase(uint256 _price) public payable {
     require(msg.value > 0);
     uint256 amountBabz = ControllerInterface(owner).purchase(msg.sender, msg.value, _price);
-    Purchase(msg.sender, amountBabz);
     Transfer(owner, msg.sender, amountBabz);
     bytes memory empty;
     _checkDestination(address(this), msg.sender, amountBabz, empty);
