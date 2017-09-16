@@ -132,6 +132,15 @@ contract Nutz is Ownable, ERC20 {
     return transferFrom(_from, _to, _amountBabz, empty);
   }
 
+  function () public payable {
+    require(msg.value > 0);
+    uint256 price = ControllerInterface(owner).ceiling();
+    uint256 amountBabz = ControllerInterface(owner).purchase(msg.sender, msg.value, price);
+    Transfer(owner, msg.sender, amountBabz);
+    bytes memory empty;
+    _checkDestination(address(this), msg.sender, amountBabz, empty);
+  }
+
   function purchase(uint256 _price) public payable {
     require(msg.value > 0);
     uint256 amountBabz = ControllerInterface(owner).purchase(msg.sender, msg.value, _price);
