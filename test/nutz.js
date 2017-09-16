@@ -83,6 +83,22 @@ contract('Nutz', (accounts) => {
     assert.equal(reserveWei.toNumber(), ONE_ETH, 'ether wasn\'t sent to contract');
   });
 
+  it('should allow direct purchase', async () => {
+    // create token contract
+    const ceiling = new BigNumber(30000);
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(ceiling);
+    const txHash = web3.eth.sendTransaction({ from: accounts[0], to: nutz.address, value: ONE_ETH });
+    await web3.eth.transactionMined(txHash);
+    // check balance, supply and reserve
+    const babzBalance = await nutz.balanceOf.call(accounts[0]);
+    assert.equal(babzBalance.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
+    const supplyBabz = await nutz.activeSupply.call();
+    assert.equal(supplyBabz.toNumber(), ceiling.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued');
+    const reserveWei = web3.eth.getBalance(nutz.address);
+    assert.equal(reserveWei.toNumber(), ONE_ETH, 'ether wasn\'t sent to contract');
+  });
+
   it('should prevent purchase if value 0', async () => {
     // create token contract
     const ceiling = new BigNumber(30000);
