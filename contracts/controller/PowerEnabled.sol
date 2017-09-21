@@ -15,7 +15,7 @@ contract PowerEnabled is MarketEnabled {
   // time it should take to power down
   uint256 public downtime;
 
-  uint public constant MIN_SHARE_OF_POWER = 10000;
+  uint public constant MIN_SHARE_OF_POWER = 100000;
 
   modifier onlyPower() {
     require(msg.sender == powerAddr);
