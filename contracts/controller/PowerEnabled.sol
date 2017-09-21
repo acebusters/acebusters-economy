@@ -36,6 +36,10 @@ contract PowerEnabled is MarketEnabled {
     downtime = _downtime;
   }
 
+  function minimumPowerUpSizeBabz() public constant returns (uint256) {
+    return totalSupply().div(MIN_SHARE_OF_POWER);
+  }
+
   // this is called when NTZ are deposited into the burn pool
   function dilutePower(uint256 _amountBabz, uint256 _amountPower) public onlyAdmins {
     uint256 authorizedPow = authorizedPower();
