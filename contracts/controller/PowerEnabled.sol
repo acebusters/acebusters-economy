@@ -15,6 +15,8 @@ contract PowerEnabled is MarketEnabled {
   // time it should take to power down
   uint256 public downtime;
 
+  uint public constant MIN_SHARE_OF_POWER = 10000;
+
   modifier onlyPower() {
     require(msg.sender == powerAddr);
     _;
@@ -90,7 +92,7 @@ contract PowerEnabled is MarketEnabled {
     _setOutstandingPower(outstandingPow.add(amountPow));
 
     uint256 powBal = powerBalanceOf(_from).add(amountPow);
-    require(powBal >= authorizedPow.div(10000)); // minShare = 10000
+    require(powBal >= authorizedPow.div(MIN_SHARE_OF_POWER)); // minShare = 10000
     _setPowerBalanceOf(_from, powBal);
     _setActiveSupply(activeSupply().sub(_amountBabz));
     _setBabzBalanceOf(_from, babzBalanceOf(_from).sub(_amountBabz));
@@ -124,8 +126,8 @@ contract PowerEnabled is MarketEnabled {
 
   function createDownRequest(address _owner, uint256 _amountPower) public onlyPower whenNotPaused {
     // prevent powering down tiny amounts
-    // when powering down, at least completeSupply/minShare Power should be claimed
-    require(_amountPower >= authorizedPower().div(10000)); // minShare = 10000;
+    // when powering down, at least totalSupply/minShare Power should be claimed
+    require(_amountPower >= authorizedPower().div(MIN_SHARE_OF_POWER)); // minShare = 10000;
     _setPowerBalanceOf(_owner, powerBalanceOf(_owner).sub(_amountPower));
 
     var (, left, ) = downs(_owner);
