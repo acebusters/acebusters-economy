@@ -88,15 +88,14 @@ contract PowerEnabled is MarketEnabled {
     // check pow limits
     uint256 outstandingPow = outstandingPower();
     require(outstandingPow.add(amountPow) <= maxPower);
+    uint256 powBal = powerBalanceOf(_from).add(amountPow);
+    require(powBal >= authorizedPow.div(MIN_SHARE_OF_POWER));
 
     if (_sender != _from) {
       allowed[_from][_sender] = allowed[_from][_sender].sub(_amountBabz);
     }
 
     _setOutstandingPower(outstandingPow.add(amountPow));
-
-    uint256 powBal = powerBalanceOf(_from).add(amountPow);
-    require(powBal >= authorizedPow.div(MIN_SHARE_OF_POWER)); // minShare = 10000
     _setPowerBalanceOf(_from, powBal);
     _setActiveSupply(activeSupply().sub(_amountBabz));
     _setBabzBalanceOf(_from, babzBalanceOf(_from).sub(_amountBabz));
@@ -131,7 +130,7 @@ contract PowerEnabled is MarketEnabled {
   function createDownRequest(address _owner, uint256 _amountPower) public onlyPower whenNotPaused {
     // prevent powering down tiny amounts
     // when powering down, at least totalSupply/minShare Power should be claimed
-    require(_amountPower >= authorizedPower().div(MIN_SHARE_OF_POWER)); // minShare = 10000;
+    require(_amountPower >= authorizedPower().div(MIN_SHARE_OF_POWER));
     _setPowerBalanceOf(_owner, powerBalanceOf(_owner).sub(_amountPower));
 
     var (, left, ) = downs(_owner);
