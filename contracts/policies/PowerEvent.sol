@@ -95,7 +95,7 @@ contract PowerEvent {
     var contr = Controller(controllerAddr);
     powerAddr = contr.powerAddr();
     nutzAddr = contr.nutzAddr();
-    initialSupply = contr.activeSupply().add(contr.powerPool()).add(contr.burnPool());
+    initialSupply = contr.completeSupply();
     initialReserve = nutzAddr.balance;
     uint256 ceiling = contr.ceiling();
     // move ceiling
@@ -149,7 +149,7 @@ contract PowerEvent {
     uint256 newCeiling = ceiling.mul(RATE_FACTOR).div(discountRate);
     contr.moveCeiling(newCeiling);
     // dilute power
-    uint256 totalSupply = contr.activeSupply().add(contr.powerPool()).add(contr.burnPool());
+    uint256 totalSupply = contr.completeSupply();
     uint256 newSupply = totalSupply.sub(initialSupply);
     contr.dilutePower(newSupply, amountPower);
     // set max power

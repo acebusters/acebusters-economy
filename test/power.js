@@ -53,7 +53,7 @@ contract('Power', (accounts) => {
     const babzBalAlice = await nutz.balanceOf.call(ALICE);
     const expectedBal = (WEI_AMOUNT * CEILING_PRICE) / PRICE_FACTOR.toNumber();
     assert.equal(babzBalAlice.toNumber(), expectedBal, 'purchase failed');
-    const babzTotal1 = await nutz.totalSupply.call();
+    const babzTotal1 = await controller.completeSupply.call();
 
     // ntz6k is 1/5 of total Nutz supply
     const ntz6k = NTZ_DECIMALS.mul(6000);
@@ -66,7 +66,7 @@ contract('Power', (accounts) => {
 
     // get some NTZ for 1 ETH with other account
     await nutz.purchase(CEILING_PRICE, {from: BOB, value: WEI_AMOUNT });
-    const babzTotal2 = await nutz.totalSupply.call();
+    const babzTotal2 = await controller.completeSupply.call();
 
     // ntz13k is 1/5 of total Nutz supply
     const ntz13k = NTZ_DECIMALS.mul(13500);
@@ -110,7 +110,7 @@ contract('Power', (accounts) => {
     const expectedBal = (WEI_AMOUNT * CEILING_PRICE * 20) / PRICE_FACTOR.toNumber();
     assert.equal(await nutz.balanceOf.call(FOUNDERS), expectedBal);
     // Founder Burn
-    const totalBabz = await nutz.totalSupply.call();
+    const totalBabz = await controller.completeSupply.call();
     await controller.dilutePower(totalBabz, 0);
     const totalPow = await power.totalSupply.call();
     await controller.setMaxPower(totalPow);
@@ -124,10 +124,10 @@ contract('Power', (accounts) => {
     await controller.moveFloor(CEILING_PRICE * 2);
     await nutz.purchase(CEILING_PRICE, {from: INVESTORS, value: WEI_AMOUNT * 7 });
     // Invetors Burn
-    const totalBabz2 = await nutz.totalSupply.call();
+    const totalBabz2 = await controller.completeSupply.call();
     const investorsBal = await nutz.balanceOf.call(INVESTORS);
     await controller.dilutePower(totalBabz2.div(4), 0);
-    const totalBabz3 = await nutz.totalSupply.call();
+    const totalBabz3 = await controller.completeSupply.call();
     const totalPow3 = await power.totalSupply.call();
     // Investor Power Up, ETH to 20 percent
     await controller.setMaxPower(totalPow3);

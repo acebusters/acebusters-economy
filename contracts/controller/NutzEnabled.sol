@@ -25,8 +25,13 @@ contract NutzEnabled is Pausable, StorageEnabled {
   // ########### NUTZ FUNCTIONS  ################
   // ############################################
 
-  // total supply
+  // total supply(modified for etherscan display)
   function totalSupply() constant returns (uint256) {
+    return activeSupply();
+  }
+
+  // total supply(for internal calculations)
+  function completeSupply() constant returns (uint256) {
     return activeSupply().add(powerPool()).add(burnPool());
   }
 
