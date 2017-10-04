@@ -13,6 +13,7 @@ contract ControllerInterface {
   function burnPool() constant returns (uint256);
   function powerPool() constant returns (uint256);
   function totalSupply() constant returns (uint256);
+  function completeSupply() constant returns (uint256);
   function allowance(address _owner, address _spender) constant returns (uint256);
 
   function approve(address _owner, address _spender, uint256 _amountBabz) public;

@@ -37,7 +37,7 @@ contract PowerEnabled is MarketEnabled {
   // this is called when NTZ are deposited into the burn pool
   function dilutePower(uint256 _amountBabz, uint256 _amountPower) public onlyAdmins {
     uint256 authorizedPow = authorizedPower();
-    uint256 totalBabz = totalSupply();
+    uint256 totalBabz = completeSupply();
     if (authorizedPow == 0) {
       // during the first capital increase, set value directly as authorized shares
       _setAuthorizedPower((_amountPower > 0) ? _amountPower : _amountBabz.add(totalBabz));
@@ -76,7 +76,7 @@ contract PowerEnabled is MarketEnabled {
     uint256 authorizedPow = authorizedPower();
     require(authorizedPow != 0);
     require(_amountBabz != 0);
-    uint256 totalBabz = totalSupply();
+    uint256 totalBabz = completeSupply();
     require(totalBabz != 0);
     uint256 amountPow = _amountBabz.mul(authorizedPow).div(totalBabz);
     // check pow limits
@@ -124,7 +124,7 @@ contract PowerEnabled is MarketEnabled {
 
   function createDownRequest(address _owner, uint256 _amountPower) public onlyPower whenNotPaused {
     // prevent powering down tiny amounts
-    // when powering down, at least totalSupply/minShare Power should be claimed
+    // when powering down, at least completeSupply/minShare Power should be claimed
     require(_amountPower >= authorizedPower().div(10000)); // minShare = 10000;
     _setPowerBalanceOf(_owner, powerBalanceOf(_owner).sub(_amountPower));
 
@@ -143,7 +143,7 @@ contract PowerEnabled is MarketEnabled {
     require(left <= minStep || minStep <= amountPow);
 
     // calculate token amount representing share of power
-    uint256 amountBabz = amountPow.mul(totalSupply()).div(authorizedPower());
+    uint256 amountBabz = amountPow.mul(completeSupply()).div(authorizedPower());
 
     // transfer power and tokens
     _setOutstandingPower(outstandingPower().sub(amountPow));
