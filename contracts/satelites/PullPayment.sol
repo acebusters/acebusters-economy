@@ -77,7 +77,7 @@ contract PullPayment is Ownable {
 
     payments[untrustedRecipient] = 0;
 
-    untrustedRecipient.transfer(amountWei);
+    assert(untrustedRecipient.call.gas(1000).value(amountWei)());
   }
 
   /*
