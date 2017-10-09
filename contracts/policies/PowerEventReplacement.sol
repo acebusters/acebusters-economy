@@ -30,4 +30,30 @@ contract PowerEventReplacement is PowerEvent {
     state = EventState.Collecting;
   }
 
+  function completeClosed() isState(EventState.Closed) {
+    var contr = Controller(controllerAddr);
+    // move ceiling
+    uint256 ceiling = contr.ceiling();
+    uint256 newCeiling = ceiling.mul(RATE_FACTOR).div(1500000);
+    contr.moveCeiling(newCeiling);
+    // dilute power
+    uint256 totalSupply = contr.completeSupply();
+    uint256 newSupply = totalSupply.sub(initialSupply);
+    contr.dilutePower(newSupply, amountPower);
+    // set max power
+    var PowerContract = ERC20(powerAddr);
+    uint256 authorizedPower = PowerContract.totalSupply();
+    contr.setMaxPower(authorizedPower);
+    // pay out milestone
+    uint256 collected = nutzAddr.balance.sub(initialReserve);
+    for (uint256 i = 0; i < milestoneRecipients.length; i++) {
+      uint256 payoutAmount = collected.mul(milestoneShares[i]).div(RATE_FACTOR);
+      contr.allocateEther(payoutAmount, milestoneRecipients[i]);
+    }
+    // remove access
+    contr.removeAdmin(address(this));
+    // set state
+    state = EventState.Complete;
+  }
+
 }
