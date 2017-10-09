@@ -111,6 +111,7 @@ contract('UpgradeEvent', (accounts) => {
     const discountRate2 = 1500000; // 150% -> make ceiling 30,000
     const milestoneRecipients2 = [EXEC_BOARD, GOVERNING_COUNCIL];
     const milestoneShares2 = [200000, 5000]; // 20% and 0.5%
+    const ceilingBeforeEvent2 = await nutz.ceiling.call();
     const event2 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap2, hardCap2, discountRate2, 0, milestoneRecipients2, milestoneShares2);
     // event #2 - buy in
     await controller.addAdmin(event2.address);
@@ -177,9 +178,11 @@ contract('UpgradeEvent', (accounts) => {
     assert.equal(amountAllocated.toNumber(), WEI_AMOUNT * 6000, 'ether wasn\'t allocated to beneficiary');
 
     // check power allocation proper after controller upgrade and replacement Event
+    const ceilingAftereEvent2 = await nutz.ceiling.call();
     const totalPow = await power.totalSupply.call();
     const founderPow = await power.balanceOf.call(FOUNDERS);
     const investorsPow = await power.balanceOf.call(INVESTORS);
+    assert.equal(ceilingBeforeEvent2.toNumber(), ceilingAftereEvent2.toNumber());
     assert.equal(founderPow.toNumber(), totalPow.mul(0.7).toNumber());
     assert.equal(investorsPow.toNumber(), totalPow.mul(0.3).toNumber());
     assert.equal(totalPow.toNumber(), POW_DECIMALS.mul(900000).toNumber());
