@@ -37,7 +37,11 @@ contract PowerEnabled is MarketEnabled {
   }
 
   function minimumPowerUpSizeBabz() public constant returns (uint256) {
-    return completeSupply().div(MIN_SHARE_OF_POWER);
+    uint256 completeSupplyBabz = completeSupply();
+    if (completeSupplyBabz == 0) {
+      return INFINITY;
+    }
+    return completeSupplyBabz.div(MIN_SHARE_OF_POWER);
   }
 
   // this is called when NTZ are deposited into the burn pool
