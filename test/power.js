@@ -202,4 +202,35 @@ contract('Power', (accounts) => {
     assert(downs[2].toNumber() > 0, "Power down start timestamp");
   });
 
+  describe('#minimumPowerUpSizeBabz', () => {
+
+    it('should return INFINITY when there is no NTZ in supply', async() => {
+      // no power possible when no ntz in supply, expect min share to be Infinity
+      assert.equal((await controller.minimumPowerUpSizeBabz()).toNumber(), INFINITY, "Initial share size");
+    });
+
+    it('should return size of 1/100000 of the economy', async() => {
+      // get some NTZ for 1 ETH
+      await controller.moveFloor(INFINITY);
+      await controller.moveCeiling(30000);
+      await nutz.purchase(30000, {from: accounts[0], value: WEI_AMOUNT });
+
+      // at this point we have 30000 ntz in supply and we expect min share ntz size to be 1/100000 of that
+      let minShareSizeBabz = (await controller.minimumPowerUpSizeBabz()).toNumber();
+      assert.equal(minShareSizeBabz, babz(30000).div(100000).toNumber(), "Min share size");
+
+      // power up half of NTZ
+      await controller.dilutePower(0, 0);
+      const power = Power.at(await controller.powerAddr.call());
+      const authorizedPower = await power.totalSupply.call();
+      await controller.setMaxPower(authorizedPower);
+      await nutz.powerUp(babz(15000).toNumber());
+
+      // we expect min share ntz size to stay unchanged, cause it includes power pool
+      minShareSizeBabz = (await controller.minimumPowerUpSizeBabz()).toNumber();
+      assert.equal(minShareSizeBabz, babz(30000).div(100000).toNumber(), "Min share size");
+    });
+
+  });
+
 });
