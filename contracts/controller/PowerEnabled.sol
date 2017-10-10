@@ -37,7 +37,7 @@ contract PowerEnabled is MarketEnabled {
   }
 
   function minimumPowerUpSizeBabz() public constant returns (uint256) {
-    return totalSupply().div(MIN_SHARE_OF_POWER);
+    return completeSupply().div(MIN_SHARE_OF_POWER);
   }
 
   // this is called when NTZ are deposited into the burn pool
@@ -129,7 +129,7 @@ contract PowerEnabled is MarketEnabled {
 
   function createDownRequest(address _owner, uint256 _amountPower) public onlyPower whenNotPaused {
     // prevent powering down tiny amounts
-    // when powering down, at least totalSupply/minShare Power should be claimed
+    // when powering down, at least completeSupply/minShare Power should be claimed
     require(_amountPower >= authorizedPower().div(MIN_SHARE_OF_POWER));
     _setPowerBalanceOf(_owner, powerBalanceOf(_owner).sub(_amountPower));
 
