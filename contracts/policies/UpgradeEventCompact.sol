@@ -41,15 +41,7 @@ contract UpgradeEventCompact {
     _;
   }
 
-  function tick() public {
-    if (state == EventState.Verifying) {
-      verifyComplete();
-    } else {
-      throw;
-    }
-  }
-
-  function verifyComplete() isState(EventState.Verifying) {
+  function upgrade() isState(EventState.Verifying) {
     // check old controller
     var old = Controller(oldController);
     old.pause();

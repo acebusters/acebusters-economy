@@ -263,8 +263,8 @@ contract('UpgradeEvent', (accounts) => {
     await nextController.addAdmin(upgradeEventComppact.address);
     await controller.addAdmin(upgradeEventComppact.address);
 
-    // ATOMIC TICK
-    await upgradeEventComppact.tick();
+    // ATOMIC upgrade
+    await upgradeEventComppact.upgrade();
 
     const pullAddrSet = await nextController.pullAddr();
     assert.equal(pullAddrSet, pullNew.address, 'New Pull Payment wasn\'t set in nextcontroller');
