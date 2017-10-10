@@ -22,10 +22,6 @@ contract PowerEventReplacement is PowerEvent {
     nutzAddr = contr.nutzAddr();
     initialSupply = 2399896170149257466012; //initialSupply as per old Power Event
     initialReserve = 22469750000000000000;  // initialReserve as per old Power Event
-    uint256 ceiling = contr.ceiling();
-    // move ceiling
-    uint256 newCeiling = ceiling.mul(discountRate).div(RATE_FACTOR);
-    contr.moveCeiling(newCeiling);
     // set state
     state = EventState.Collecting;
   }
