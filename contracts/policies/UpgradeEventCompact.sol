@@ -18,7 +18,6 @@ contract UpgradeEventCompact {
   address public council;
 
   // Params
-  address powerEventReplacement;
   address nextPullPayment;
   address storageAddr;
   address nutzAddr;
