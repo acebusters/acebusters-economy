@@ -5,6 +5,7 @@ const PullPayment = artifacts.require('./satelites/PullPayment.sol');
 const Controller = artifacts.require('./controller/Controller.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
+const economy = require('./helpers/economy.js');
 const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
 const babz = (ntz) => new BigNumber(NTZ_DECIMALS).mul(ntz);
@@ -153,6 +154,41 @@ contract('Power', (accounts) => {
     await pullPayment.withdraw({ from: FOUNDERS, gasPrice: 0 });
     const after = web3.eth.getBalance(FOUNDERS);
     assert.equal(after - before, amountAllocated.toNumber(), 'allocation wasn\'t payed out.');
+  });
+
+  it("should not loose precision due to power pool rounding", async () => {
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(1200000000);
+    await controller.setDowntime(DOWNTIME);
+
+    await nutz.purchase(1200000000, {from: accounts[0], value: WEI_AMOUNT });
+
+    // authorize shares
+    const amountPower = new BigNumber(10).pow(12).mul(630000).mul(2);
+    let totalSupplyBabz = await controller.completeSupply.call()
+    await controller.dilutePower(totalSupplyBabz, amountPower);
+    let totalPower = await power.totalSupply.call();
+    await controller.setMaxPower(totalPower);
+
+    // powering up. Here we initialize power pool with non-zero value
+    const powerUpVal = babz(100000);
+    await nutz.powerUp(powerUpVal);
+
+    // keep power pool size to use it for later calculations
+    const oldPowerPool = await controller.powerPool.call();
+
+    // but some more NTZ. We expect power pool to increase more
+    await controller.moveCeiling(20000);
+    await nutz.purchase(20000, {from: accounts[0], value: WEI_AMOUNT });
+
+    // let's check power pool increased precisely
+    const newPowerPool = await controller.powerPool.call();
+    const activeSupply = await controller.activeSupply.call();
+    const burnPool = await controller.burnPool.call();
+    // replicating power pool increase logic from purchase() method
+    const expectedPool = oldPowerPool.add(oldPowerPool.mul(new BigNumber(20000).mul(WEI_AMOUNT).div(1000000)).div(activeSupply.add(burnPool)));
+
+    assert.equal(newPowerPool.toNumber(), expectedPool.toNumber(), "Power pool");
   });
 
   it('should allow to slash down request');
