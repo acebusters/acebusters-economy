@@ -174,8 +174,9 @@ contract('Power', (accounts) => {
     const powerUpVal = babz(100000);
     await nutz.powerUp(powerUpVal);
 
-    // keep power pool size to use it for later calculations
+    // keep power pool size & active supply size to use it for later calculations
     const oldPowerPool = await controller.powerPool.call();
+    const activeSupply = await controller.activeSupply.call();
 
     // but some more NTZ. We expect power pool to increase more
     await controller.moveCeiling(20000);
@@ -183,7 +184,6 @@ contract('Power', (accounts) => {
 
     // let's check power pool increased precisely
     const newPowerPool = await controller.powerPool.call();
-    const activeSupply = await controller.activeSupply.call();
     const burnPool = await controller.burnPool.call();
     // replicating power pool increase logic from purchase() method
     const expectedPool = oldPowerPool.add(oldPowerPool.mul(new BigNumber(20000).mul(WEI_AMOUNT).div(1000000)).div(activeSupply.add(burnPool)));
