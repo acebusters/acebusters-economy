@@ -314,7 +314,7 @@ contract('Power', (accounts) => {
       assert.equal((await controller.minimumPowerUpSizeBabz()).toNumber(), INFINITY, "Initial share size");
     });
 
-    it('should return size of 1/100000 of the economy', async() => {
+    it('should be 100 NTZ', async() => {
       // get some NTZ for 1 ETH
       await controller.moveFloor(INFINITY);
       await controller.moveCeiling(30000);
@@ -322,7 +322,7 @@ contract('Power', (accounts) => {
 
       // at this point we have 30000 ntz in supply and we expect min share ntz size to be 1/100000 of that
       let minShareSizeBabz = (await controller.minimumPowerUpSizeBabz()).toNumber();
-      assert.equal(minShareSizeBabz, babz(30000).div(100000).toNumber(), "Min share size");
+      assert.equal(minShareSizeBabz, babz(100).toNumber(), "Min share size");
 
       // power up half of NTZ
       await controller.dilutePower(0, 0);
@@ -333,7 +333,7 @@ contract('Power', (accounts) => {
 
       // we expect min share ntz size to stay unchanged, cause it includes power pool
       minShareSizeBabz = (await controller.minimumPowerUpSizeBabz()).toNumber();
-      assert.equal(minShareSizeBabz, babz(30000).div(100000).toNumber(), "Min share size");
+      assert.equal(minShareSizeBabz, babz(100).toNumber(), "Min share size");
     });
 
   });
