@@ -191,6 +191,75 @@ contract('Power', (accounts) => {
     assert.equal(newPowerPool.toNumber(), expectedPool.toNumber(), "Power pool");
   });
 
+  it("rounding experiment", async () => {
+    const ALICE = accounts[0];
+    const BOB = accounts[1];
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(1200000000);
+    await controller.setDowntime(DOWNTIME);
+
+    console.log('Purchase..');
+    await nutz.purchase(1200000000, {from: ALICE, value: WEI_AMOUNT });
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    console.log('Dilute..');
+    const POW_DECIMALS = new BigNumber(10).pow(12);
+    const amountPower = POW_DECIMALS.mul(6300000).mul(2);
+    let totalSupplyBabz = await controller.completeSupply.call()
+    await controller.dilutePower(totalSupplyBabz, amountPower);
+    let totalPower = await power.totalSupply.call();
+    await controller.setMaxPower(totalPower);
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    let powerUpVal = babz(1000000000);
+    console.log(`Power up\t\t ${economy.printValue(powerUpVal, 'NTZ')} ..`);
+    await nutz.powerUp(powerUpVal);
+    await controller.moveCeiling(20000);
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    console.log(`Purchase\t\t ${economy.printValue(babz(20000), 'NTZ')}`);
+    await nutz.purchase(20000, {from: ALICE, value: WEI_AMOUNT });
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    powerUpVal = babz(100);
+    console.log(`Power up\t\t ${economy.printValue(powerUpVal, 'NTZ')} ..`);
+    await nutz.powerUp(powerUpVal);
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    const nutzBal = await nutz.balanceOf.call(ALICE);
+
+    let pow = (await power.balanceOf.call(ALICE)).div(10);
+    //let pow = babz(50);
+
+    console.log(`Down\t\t\t ${economy.printValue(pow, 'ABP')} ..`);
+    console.log(`Babz for power down?:\t ${economy.printValue(pow.mul(await controller.completeSupply.call()).div(await controller.authorizedPower.call()), 'NTZ')}`)
+    await power.transfer(0x0, pow);
+    console.log('tick..');
+    await power.downTickTest(ALICE, (Date.now() / 1000 | 0) + DOWNTIME);
+
+    const prevUserPower = (await power.balanceOf.call(ALICE)).toNumber();
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    powerUpVal = (await nutz.balanceOf.call(ALICE)).sub(nutzBal);
+
+    for (var i = 0; i < 5; i++) {
+      await nutz.powerUp(powerUpVal);
+      await power.transfer(0x0, pow);
+      await power.downTickTest(ALICE, (Date.now() / 1000 | 0) + DOWNTIME);
+      console.log(`\t\t\t ${economy.printValue(await power.balanceOf.call(ALICE), 'ABP')}`);
+    }
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    let curUserPower = (await power.balanceOf.call(ALICE)).toNumber();
+    assert.equal(curUserPower, prevUserPower, 'power');
+  });
+
   it('should allow to slash down request');
 
   it("should allow to slash power balance", async () => {
