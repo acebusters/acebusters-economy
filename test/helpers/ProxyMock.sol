@@ -36,7 +36,7 @@ contract ProxyMock {
     Deposit(msg.sender, msg.value);
   }
 
-  function purchase(address _addr) payable {
+  function purchase(address _addr) payable onlyOwner {
     bytes memory empty;
     forward(_addr, msg.value, empty);
   }
