@@ -196,5 +196,4 @@ contract MarketEnabled is NutzEnabled {
     }
     return true;
   }
-
 }
