@@ -4,7 +4,7 @@ import "./PowerEnabled.sol";
 
 contract Controller is PowerEnabled {
 
-  function Controller(address _powerAddr, address _pullAddr, address _nutzAddr, address _storageAddr) 
+  function Controller(address _powerAddr, address _pullAddr, address _nutzAddr, address _storageAddr)
     PowerEnabled(_powerAddr, _pullAddr, _nutzAddr, _storageAddr) {
   }
 
@@ -13,10 +13,6 @@ contract Controller is PowerEnabled {
     nutzAddr = _nutzAddr;
     powerAddr = _powerAddr;
     pullAddr = _pullAddr;
-  }
-
-  function changeDailyLimit(uint256 _dailyLimit) public onlyAdmins {
-    PullPayment(pullAddr).changeDailyLimit(_dailyLimit);
   }
 
   function kill(address _newController) public onlyAdmins whenPaused {

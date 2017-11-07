@@ -93,4 +93,26 @@ contract StorageEnabled {
     Storage(storageAddr).setBal('PowerDown', _holder, result);
   }
 
+  // ############################################
+  // ########### PULLPAY   FUNCTIONS  ###########
+  // ############################################
+
+  function getPayments(address _user) constant public returns (uint256 value, uint256 date) {
+    uint256 rawBytes = Storage(storageAddr).getBal('Payments', _user);
+    value = uint192(rawBytes);
+    date = (rawBytes >> 192);
+    return;
+  }
+
+  function getPayBalance(address _user) constant public returns (uint256 value) {
+    uint256 rawBytes = Storage(storageAddr).getBal('Payments', _user);
+    value = uint192(rawBytes);
+    return;
+  }
+
+  function _setPayments(address _holder, uint256 value, uint256 date) internal {
+    uint256 result = (date << 192) + uint192(value);
+    Storage(storageAddr).setBal('Payments', _holder, result);
+  }
+
 }

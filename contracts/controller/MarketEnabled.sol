@@ -11,12 +11,22 @@ contract MarketEnabled is NutzEnabled {
   // address of the pull payemnt satelite
   address public pullAddr;
 
+  // not written to storage satellite because easily transferrable to new controller
+  uint256 public dailyLimit = 1000000000000000000000;  // 1 ETH
+  uint256 public lastDay;
+  uint256 public spentToday;
+
   // the Token sale mechanism parameters:
   // purchasePrice is the number of NTZ received for purchase with 1 ETH
   uint256 internal purchasePrice;
 
   // floor is the number of NTZ needed, to receive 1 ETH in sell
   uint256 internal salePrice;
+
+  modifier onlyPull() {
+    require(msg.sender == pullAddr);
+    _;
+  }
 
   function MarketEnabled(address _pullAddr, address _storageAddr, address _nutzAddr)
     NutzEnabled(_nutzAddr, _storageAddr) {
@@ -37,6 +47,36 @@ contract MarketEnabled is NutzEnabled {
     uint256 maxFloor = activeSupply().mul(1000000).div(nutzAddr.balance); // 1,000,000 WEI, used as price factor
     // return max of maxFloor or salePrice
     return maxFloor >= salePrice ? maxFloor : salePrice;
+  }
+
+  // ############################################
+  // ########### PULLPAY FUNCTIONS  #############
+  // ############################################
+
+  function ethBalanceOf(address _owner) constant returns (uint256 value) {
+    return getPayBalance(_owner);
+  }
+
+  function paymentOf(address _owner) constant returns (uint256 value, uint256 date) {
+    return getPayments(_owner);
+  }
+
+
+  // ############################################
+  // ########### ADMIN FUNCTIONS  ###############
+  // ############################################
+
+  /// @dev Allows to change the daily limit. Transaction has to be sent by wallet.
+  /// @param _dailyLimit Amount in wei.
+  function changeDailyLimit(uint256 _dailyLimit) public onlyAdmins {
+      dailyLimit = _dailyLimit;
+  }
+
+  function changeWithdrawalDate(address _owner, uint256 _newDate)  public onlyAdmins {
+    // allow to withdraw immediately
+    // move witdrawal date more days into future
+    var (value, ) = getPayments(_owner);
+    _setPayments(_owner, value, _newDate);
   }
 
   function moveCeiling(uint256 _newPurchasePrice) public onlyAdmins {
