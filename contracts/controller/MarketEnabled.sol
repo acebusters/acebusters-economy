@@ -79,6 +79,15 @@ contract MarketEnabled is NutzEnabled {
     _setPayments(_owner, value, _newDate);
   }
 
+  /// @dev Allows to set the lastDay. Mainly for the UpgradeEvent.
+  function setLastDay(uint256 _lastDay) public onlyAdmins {
+      lastDay = _lastDay;
+  }
+  /// @dev Allows to set the spentToday. Mainly for the UpgradeEvent.
+  function setSpentToday(uint256 _spentToday) public onlyAdmins {
+      spentToday = _spentToday;
+  }
+
   function moveCeiling(uint256 _newPurchasePrice) public onlyAdmins {
     require(_newPurchasePrice <= salePrice);
     purchasePrice = _newPurchasePrice;
