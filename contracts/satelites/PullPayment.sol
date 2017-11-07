@@ -38,7 +38,9 @@ contract PullPayment is Ownable {
   }
 
   function withdraw() public {
-
+    address untrustedRecipient = msg.sender;
+    uint256 amountWei = ControllerInterface(owner).withdraw(untrustedRecipient);
+    assert(untrustedRecipient.call.gas(1000).value(amountWei)());
   }
 
   function asyncSend(address _dest) public payable onlyNutz {
