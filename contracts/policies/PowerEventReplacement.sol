@@ -30,7 +30,7 @@ contract PowerEventReplacement is PowerEvent {
     var contr = Controller(controllerAddr);
     // move ceiling
     uint256 ceiling = contr.ceiling();
-    uint256 newCeiling = ceiling.mul(RATE_FACTOR).div(1500000);
+    uint256 newCeiling = 20000;
     contr.moveCeiling(newCeiling);
     // dilute power
     uint256 totalSupply = contr.completeSupply();
