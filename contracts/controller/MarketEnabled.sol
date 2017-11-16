@@ -89,7 +89,7 @@ contract MarketEnabled is NutzEnabled {
     uint256 powPool = powerPool();
     uint256 activeSup = activeSupply();
     if (powPool > 0) {
-      uint256 powerShare = powPool.mul(_amountBabz).div(activeSup);
+      uint256 powerShare = powPool.mul(_amountBabz).div(activeSup.add(burnPool()));
       _setPowerPool(powPool.sub(powerShare));
     }
     _setActiveSupply(activeSup.sub(_amountBabz));
