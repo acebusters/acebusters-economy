@@ -92,6 +92,83 @@ contract('PowerEvent', (accounts) => {
     assert.equal(totalPow.toNumber(), POW_DECIMALS.mul(900000).toNumber());
   });
 
+  it('should allow multiple purchase/sell and allow to retain power pool size', async () => {
+    const nutz = await Nutz.new();
+    const power = await Power.new();
+    const storage = await Storage.new();
+    const pull = await PullPayment.new();
+    controller = await Controller.new(power.address, pull.address, nutz.address, storage.address);
+    nutz.transferOwnership(controller.address);
+    power.transferOwnership(controller.address);
+    storage.transferOwnership(controller.address);
+    pull.transferOwnership(controller.address);
+    await controller.unpause();
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(CEILING_PRICE);
+
+
+    // prepare event #1
+    const FOUNDERS = accounts[1];
+    const startTime = (Date.now() / 1000 | 0) - 60;
+    const minDuration = 0;
+    const maxDuration = 3600;
+    const softCap = WEI_AMOUNT;
+    const hardCap = WEI_AMOUNT;
+    const discountRate = 60000000000; // make ceiling 1,200,000,000
+    const amountPower = POW_DECIMALS.mul(630000).mul(2);
+    const milestoneRecipients = [];
+    const milestoneShares = [];
+    const event1 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap, hardCap, discountRate, amountPower, milestoneRecipients, milestoneShares);
+    await controller.addAdmin(event1.address);
+    await event1.tick();
+    // event #1 - buyin
+    await nutz.purchase(1200000000, {from: FOUNDERS, value: WEI_AMOUNT });
+    // event #1 - burn
+    await event1.tick();
+    await event1.tick();
+    // event #1 power up
+    await nutz.powerUp(babz(1200000), { from: FOUNDERS });
+    const totalPow1 = await power.totalSupply.call();
+    const founderPow1 = await power.balanceOf.call(FOUNDERS);
+    const powerPoolBefore = await controller.powerPool();
+    assert.equal(founderPow1.toNumber(), totalPow1.toNumber());
+    assert.equal(totalPow1.toNumber(), POW_DECIMALS.mul(630000).toNumber());
+
+    // prepare event #2
+    const INVESTORS = accounts[2];
+    const EXEC_BOARD = accounts[3];
+    const GOVERNING_COUNCIL = accounts[4];
+    const softCap2 = WEI_AMOUNT * 5000;
+    const hardCap2 = WEI_AMOUNT * 30000;
+    const discountRate2 = 1500000; // 150% -> make ceiling 30,000
+    const milestoneRecipients2 = [EXEC_BOARD, GOVERNING_COUNCIL];
+    const milestoneShares2 = [200000, 5000]; // 20% and 0.5%
+    const event2 = await PowerEvent.new(controller.address, startTime, minDuration, maxDuration, softCap2, hardCap2, discountRate2, 0, milestoneRecipients2, milestoneShares2);
+    // event #2 - buy in
+    await controller.addAdmin(event2.address);
+    await event2.startCollection();
+    await controller.moveFloor(32000);
+    const totalSupply = await controller.totalSupply();
+    const powPoolPercentBefore = await powerPoolBefore.mul(1000000000000).div(totalSupply);
+
+    await nutz.purchase(30000, {from: INVESTORS, value: hardCap2/2 });
+    const balance1 = await nutz.balanceOf(INVESTORS);
+
+    await nutz.sell(32000, balance1.toNumber(), {from:INVESTORS});
+
+    await nutz.purchase(30000, {from: INVESTORS, value: hardCap2/2 });
+    const balance2 = await nutz.balanceOf(INVESTORS);
+
+    await nutz.sell(32000, balance2.toNumber(), {from:INVESTORS});
+    const powerPoolAfter = await controller.powerPool();
+
+    const powPoolPercentAfter = await powerPoolAfter.mul(1000000000000).div(totalSupply);
+
+    assert.equal(powerPoolAfter.toNumber(), powerPoolBefore.toNumber(), 'Power Pool size not retained');
+    assert.equal(powPoolPercentBefore.toNumber(), powPoolPercentAfter.toNumber(), 'Power Pool size not maintained w.r.t economy');
+
+  });
+
   it('should not allow to initilialize power event because of milestone length mismatch', async () => {
     const nutz = await Nutz.new();
     const power = await Power.new();
