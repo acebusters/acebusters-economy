@@ -174,7 +174,7 @@ contract('UpgradeEvent', (accounts) => {
     const investorsBal = await nutz.balanceOf.call(INVESTORS);
     await nutz.powerUp(investorsBal, { from: INVESTORS });
     // event #replacement - milestone payment
-    await controller.moveFloor(CEILING_PRICE * 2);
+    await nextController.moveFloor(CEILING_PRICE * 2);
     let amountAllocated = await pullNew.balanceOf.call(EXEC_BOARD);
     assert.equal(amountAllocated.toNumber(), WEI_AMOUNT * 6000, 'ether wasn\'t allocated to beneficiary');
 
@@ -245,6 +245,18 @@ contract('UpgradeEvent', (accounts) => {
     // purchase some tokens with ether
     await nutz.purchase(30000, {from: accounts[0], value: smallSwapEther });
 
+    // mess with the powerPool
+    const powerPoolBefore = await controller.powerPool();
+    await nutz.purchase(30000, {from: accounts[9], value: smallSwapEther });
+    await controller.moveFloor(30000);
+    const balance = await nutz.balanceOf(accounts[9]);
+    await nutz.sell(30000, balance, {from: accounts[9]});
+    await controller.moveFloor(INFINITY);
+
+    // check Power pool
+    const powerPoolAfter = await controller.powerPool()
+    assert(powerPoolAfter.toNumber() < powerPoolBefore.toNumber(), 'Sell logic magically worked !!');
+
     const nutzBalanceBefore = await web3.eth.getBalance(nutz.address);
     // check balance, supply and reserve
     const babzBalBefore = await nutz.balanceOf.call(accounts[0]);
@@ -265,6 +277,9 @@ contract('UpgradeEvent', (accounts) => {
 
     // ATOMIC upgrade
     await upgradeEventComppact.upgrade();
+
+    const powerPoolRectified = await nextController.powerPool();
+    assert.equal(powerPoolRectified.toNumber(), powerPoolBefore.toNumber(), 'Upgrade contract didn\'t correct storage');
 
     const pullAddrSet = await nextController.pullAddr();
     assert.equal(pullAddrSet, pullNew.address, 'New Pull Payment wasn\'t set in nextcontroller');
@@ -298,7 +313,7 @@ contract('UpgradeEvent', (accounts) => {
     const investorsBal = await nutz.balanceOf.call(INVESTORS);
     await nutz.powerUp(investorsBal, { from: INVESTORS });
     // event #replacement - milestone payment
-    await controller.moveFloor(CEILING_PRICE * 2);
+    await nextController.moveFloor(CEILING_PRICE * 2);
     let amountAllocated = await pullNew.balanceOf.call(EXEC_BOARD);
     assert.equal(amountAllocated.toNumber(), WEI_AMOUNT * 6000, 'ether wasn\'t allocated to beneficiary');
 
@@ -312,7 +327,6 @@ contract('UpgradeEvent', (accounts) => {
     assert.equal(investorsPow.toNumber(), totalPow.mul(0.3).toNumber());
     assert.equal(totalPow.toNumber(), POW_DECIMALS.mul(900000).toNumber());
   });
-
 
   it('should allow to recover from emergency');
 

@@ -2,8 +2,10 @@ pragma solidity ^0.4.11;
 
 import '../controller/Controller.sol';
 import '../ownership/Ownable.sol';
+import '../satelites/Storage.sol';
 
 contract UpgradeEventCompact {
+  using SafeMath for uint;
 
   // states
   //  - verifying, initial state
@@ -59,6 +61,7 @@ contract UpgradeEventCompact {
     downtime = old.downtime();
     purchasePrice = old.ceiling();
     salePrice = old.floor();
+    uint newPowerPool = (old.outstandingPower()).mul(old.activeSupply().add(old.burnPool())).div(old.authorizedPower().sub(old.outstandingPower()));
     //set pull payment contract in old controller
     old.setContracts(powerAddr, nextPullPayment, nutzAddr, storageAddr);
     // kill old controller, sending all ETH to new controller
@@ -67,6 +70,7 @@ contract UpgradeEventCompact {
     Ownable(nutzAddr).transferOwnership(nextController);
     Ownable(powerAddr).transferOwnership(nextController);
     // transfer ownership of storage to next controller
+    Storage(storageAddr).setUInt('Nutz', 'powerPool', newPowerPool);
     Ownable(storageAddr).transferOwnership(nextController);
     // if intended, transfer ownership of pull payment account
     Ownable(nextPullPayment).transferOwnership(nextController);
