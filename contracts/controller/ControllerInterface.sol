@@ -7,6 +7,11 @@ contract ControllerInterface {
   bool public paused;
   address public nutzAddr;
 
+  // Market State Variables
+  uint256 public dailyLimit;
+  uint256 public lastDay;
+  uint256 public spentToday;
+
   // Nutz functions
   function babzBalanceOf(address _owner) constant returns (uint256);
   function activeSupply() constant returns (uint256);
@@ -23,6 +28,10 @@ contract ControllerInterface {
   // Market functions
   function floor() constant returns (uint256);
   function ceiling() constant returns (uint256);
+  function ethBalanceOf(address _owner) constant returns (uint256);
+  function paymentOf(address _owner) constant returns (uint256, uint256);
+
+  function withdraw(address _untrustedReceipient) public returns (uint256);
 
   function purchase(address _sender, uint256 _value, uint256 _price) public returns (uint256);
   function sell(address _from, uint256 _price, uint256 _amountBabz);

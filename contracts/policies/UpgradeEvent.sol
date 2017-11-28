@@ -26,6 +26,9 @@ contract UpgradeEvent {
   uint256 downtime;
   uint256 purchasePrice;
   uint256 salePrice;
+  uint256 dailyLimit;
+  uint256 lastDay;
+  uint256 spentToday;
 
   function UpgradeEvent(address _oldController, address _nextController) {
     state = EventState.Verifying;
@@ -68,6 +71,10 @@ contract UpgradeEvent {
     downtime = old.downtime();
     purchasePrice = old.ceiling();
     salePrice = old.floor();
+    dailyLimit = old.dailyLimit();
+    lastDay = old.lastDay();
+    spentToday = old.spentToday();
+
     // kill old controller, sending all ETH to new controller
     old.kill(nextController);
     // transfer ownership of Nutz/Power contracts to next controller
@@ -93,6 +100,9 @@ contract UpgradeEvent {
     if (maxPower > 0) {
       next.setMaxPower(maxPower);
     }
+    next.changeDailyLimit(dailyLimit);
+    next.setLastDay(lastDay);
+    next.setSpentToday(spentToday);
     next.setDowntime(downtime);
     next.moveFloor(salePrice);
     next.moveCeiling(purchasePrice);

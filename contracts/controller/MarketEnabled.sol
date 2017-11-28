@@ -11,12 +11,22 @@ contract MarketEnabled is NutzEnabled {
   // address of the pull payemnt satelite
   address public pullAddr;
 
+  // not written to storage satellite because easily transferrable to new controller
+  uint256 public dailyLimit = 1000000000000000000000;  // 1 ETH
+  uint256 public lastDay;
+  uint256 public spentToday;
+
   // the Token sale mechanism parameters:
   // purchasePrice is the number of NTZ received for purchase with 1 ETH
   uint256 internal purchasePrice;
 
   // floor is the number of NTZ needed, to receive 1 ETH in sell
   uint256 internal salePrice;
+
+  modifier onlyPull() {
+    require(msg.sender == pullAddr);
+    _;
+  }
 
   function MarketEnabled(address _pullAddr, address _storageAddr, address _nutzAddr)
     NutzEnabled(_nutzAddr, _storageAddr) {
@@ -39,6 +49,45 @@ contract MarketEnabled is NutzEnabled {
     return maxFloor >= salePrice ? maxFloor : salePrice;
   }
 
+  // ############################################
+  // ########### PULLPAY FUNCTIONS  #############
+  // ############################################
+
+  function ethBalanceOf(address _owner) constant returns (uint256 value) {
+    return getPayBalance(_owner);
+  }
+
+  function paymentOf(address _owner) constant returns (uint256 value, uint256 date) {
+    return getPayments(_owner);
+  }
+
+
+  // ############################################
+  // ########### ADMIN FUNCTIONS  ###############
+  // ############################################
+
+  /// @dev Allows to change the daily limit. Transaction has to be sent by wallet.
+  /// @param _dailyLimit Amount in wei.
+  function changeDailyLimit(uint256 _dailyLimit) public onlyAdmins {
+      dailyLimit = _dailyLimit;
+  }
+
+  function changeWithdrawalDate(address _owner, uint256 _newDate)  public onlyAdmins {
+    // allow to withdraw immediately
+    // move witdrawal date more days into future
+    var (value, ) = getPayments(_owner);
+    _setPayments(_owner, value, _newDate);
+  }
+
+  /// @dev Allows to set the lastDay. Mainly for the UpgradeEvent.
+  function setLastDay(uint256 _lastDay) public onlyAdmins {
+      lastDay = _lastDay;
+  }
+  /// @dev Allows to set the spentToday. Mainly for the UpgradeEvent.
+  function setSpentToday(uint256 _spentToday) public onlyAdmins {
+      spentToday = _spentToday;
+  }
+
   function moveCeiling(uint256 _newPurchasePrice) public onlyAdmins {
     require(_newPurchasePrice <= salePrice);
     purchasePrice = _newPurchasePrice;
@@ -54,6 +103,20 @@ contract MarketEnabled is NutzEnabled {
     }
     salePrice = _newSalePrice;
   }
+
+  // withdraw excessive reserve - i.e. milestones
+  function allocateEther(uint256 _amountWei, address _beneficiary) public onlyAdmins {
+    require(_amountWei > 0);
+    // allocateEther fails if allocating those funds would mean that the
+    // sale mechanism is no longer able to buy back all tokens at the floor
+    // price if those funds were to be withdrawn.
+    require(nutzAddr.balance.sub(_amountWei) >= activeSupply().mul(1000000).div(salePrice)); // 1,000,000 WEI, used as price factor
+    _asyncSend(_beneficiary, _amountWei);
+  }
+
+  // ############################################
+  // ########### MARKET FUNCTIONS  ##############
+  // ############################################
 
   function purchase(address _sender, uint256 _value, uint256 _price) public onlyNutz whenNotPaused returns (uint256) {
     // disable purchases if purchasePrice set to 0
@@ -94,18 +157,52 @@ contract MarketEnabled is NutzEnabled {
     }
     _setActiveSupply(activeSup.sub(_amountBabz));
     _setBabzBalanceOf(_from, babzBalanceOf(_from).sub(_amountBabz));
-    Nutz(nutzAddr).asyncSend(pullAddr, _from, amountWei);
+    _asyncSend(_from, amountWei);
   }
 
+  function withdraw(address _untrustedReceipient) public onlyPull whenNotPaused returns (uint256) {
+    var(amountWei, date) = getPayments(_untrustedReceipient);
 
-  // withdraw excessive reserve - i.e. milestones
-  function allocateEther(uint256 _amountWei, address _beneficiary) public onlyAdmins {
-    require(_amountWei > 0);
-    // allocateEther fails if allocating those funds would mean that the
-    // sale mechanism is no longer able to buy back all tokens at the floor
-    // price if those funds were to be withdrawn.
-    require(nutzAddr.balance.sub(_amountWei) >= activeSupply().mul(1000000).div(salePrice)); // 1,000,000 WEI, used as price factor
-    Nutz(nutzAddr).asyncSend(pullAddr, _beneficiary, _amountWei);
+    require(amountWei != 0);
+    require(now >= date);
+    require(pullAddr.balance >= amountWei);
+
+    _setPayments(_untrustedReceipient, 0, 0);
+    return amountWei;
   }
 
+  // ############################################
+  // ########### INTERNAL FUNCTIONS  ############
+  // ############################################
+
+  function _asyncSend(address _dest, uint256 amountWei) internal {
+    require(amountWei > 0);
+    var (oldValue, ) = getPayments(_dest);
+    uint256 newValue = amountWei.add(oldValue);
+    uint256 newDate;
+    if (isUnderLimit(amountWei)) {
+      var (, date) = getPayments(_dest);
+      newDate = (date > now) ? date : now;
+    } else {
+      newDate = now.add(3 days);
+    }
+    spentToday = spentToday.add(amountWei);
+    _setPayments(_dest, newValue, newDate);
+    Nutz(nutzAddr).asyncSend(pullAddr, _dest, amountWei);
+   }
+
+  /// @dev Returns if amount is within daily limit and resets spentToday after one day.
+  /// @param amount Amount to withdraw.
+  /// @return Returns if amount is under daily limit.
+  function isUnderLimit(uint256 amount) internal returns (bool) {
+    if (now > lastDay.add(24 hours)) {
+      lastDay = now;
+      spentToday = 0;
+    }
+    // not using safe math because we don't want to throw;
+    if (spentToday + amount > dailyLimit || spentToday + amount < spentToday) {
+      return false;
+    }
+    return true;
+  }
 }
