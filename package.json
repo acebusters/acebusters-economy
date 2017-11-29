@@ -26,6 +26,7 @@
     "solidity-coverage": "^0.2.1"
   },
   "dependencies": {
-    "bignumber.js": "^4.0.1"
+    "bignumber.js": "^4.0.1",
+    "solidity-static-analysis": "^1.1.0"
   }
 }
