@@ -245,53 +245,48 @@ contract('UpgradeEvent', (accounts) => {
     // purchase some tokens with ether
     await nutz.purchase(30000, {from: accounts[0], value: smallSwapEther });
 
-    // mess with the powerPool
-    const powerPoolBefore = await controller.powerPool();
-    await nutz.purchase(30000, {from: accounts[9], value: smallSwapEther });
-    await controller.moveFloor(30000);
-    const balance = await nutz.balanceOf(accounts[9]);
-    await nutz.sell(30000, balance, {from: accounts[9]});
-    await controller.moveFloor(INFINITY);
-
-    // check Power pool
-    const powerPoolAfter = await controller.powerPool()
-    assert(powerPoolAfter.toNumber() < powerPoolBefore.toNumber(), 'Sell logic magically worked !!');
-
     const nutzBalanceBefore = await web3.eth.getBalance(nutz.address);
     // check balance, supply and reserve
     const babzBalBefore = await nutz.balanceOf.call(accounts[0]);
     assert.equal(babzBalBefore.toNumber(), MIN_NTZ.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
 
     // #START OF THE UPGRADE PROCESS
-
-    // deploy new pull payment contract
+    const nutzAddrOld = await controller.nutzAddr();
+    const nutzSatelliteBalanceBefore = await web3.eth.getBalance(nutzAddrOld);
+    // deploy new pull payment and Nutz contract
     const pullNew = await PullPayment.new();
+    const nutzNew = await Nutz.new();
     await pullNew.transferOwnership(controller.address);
+    await nutzNew.transferOwnership(controller.address);
     // remove old Power Event
     await controller.removeAdmin(event2.address);
-    // upgrade controller contract (next controller with new pull payment address)
-    const nextController = await MockController.new(power.address, pullNew.address, nutz.address, storage.address);
-    const upgradeEventComppact = await UpgradeEventCompact.new(controller.address, nextController.address, pullNew.address);
+    // upgrade controller contract (next controller with new pull payment and new nutz address)
+    const nextController = await MockController.new(power.address, pullNew.address, nutzNew.address, storage.address);
+    const upgradeEventComppact = await UpgradeEventCompact.new(controller.address, nextController.address, pullNew.address, nutzNew.address);
     await nextController.addAdmin(upgradeEventComppact.address);
     await controller.addAdmin(upgradeEventComppact.address);
 
     // ATOMIC upgrade
     await upgradeEventComppact.upgrade();
 
-    const powerPoolRectified = await nextController.powerPool();
-    assert.equal(powerPoolRectified.toNumber(), powerPoolBefore.toNumber(), 'Upgrade contract didn\'t correct storage');
-
     const pullAddrSet = await nextController.pullAddr();
     assert.equal(pullAddrSet, pullNew.address, 'New Pull Payment wasn\'t set in nextcontroller');
+
+    const nutzAddrSet = await nextController.nutzAddr();
+    assert.equal(nutzAddrSet, nutzNew.address, 'New Nutz wasn\'t set in nextcontroller');
+
+    const nutzSatelliteBalanceAfter = await web3.eth.getBalance(nutzAddrSet);
+    assert.equal(nutzSatelliteBalanceBefore.toNumber(), nutzSatelliteBalanceAfter.toNumber(), 'Upgrade() didn\'t work properly');
+
     // check balance with next controller
-    const babzBalAfter = await nutz.balanceOf.call(accounts[0]);
+    const babzBalAfter = await nutzNew.balanceOf.call(accounts[0]);
     assert.equal(babzBalAfter.toNumber(), MIN_NTZ.mul(NTZ_DECIMALS).toNumber(), 'token wasn\'t issued to account');
     // check eth migrated
-    const reserveWei = web3.eth.getBalance(nutz.address);
+    const reserveWei = web3.eth.getBalance(nutzNew.address);
     assert.equal(reserveWei.toNumber(), nutzBalanceBefore, 'ether wasn\'t sent to contract');
     // check transfers with next controller
-    await nutz.transfer(INVESTORS, babzBalAfter);
-    const babzBalEnd = await nutz.balanceOf.call(accounts[0]);
+    await nutzNew.transfer(INVESTORS, babzBalAfter);
+    const babzBalEnd = await nutzNew.balanceOf.call(accounts[0]);
     assert.equal(babzBalEnd.toNumber(), 0, 'transfer failed after upgrade');
 
     // prepare replacement event
@@ -305,20 +300,20 @@ contract('UpgradeEvent', (accounts) => {
     await nextController.addAdmin(eventReplacement.address);
 
     await eventReplacement.startCollection();
-    await nutz.purchase(30000, {from: INVESTORS, value: remainingBalance });
+    await nutzNew.purchase(30000, {from: INVESTORS, value: remainingBalance });
     // event #replacement - burn
     await eventReplacement.stopCollection();
     await eventReplacement.completeClosed();
     // event #replacement - power up
-    const investorsBal = await nutz.balanceOf.call(INVESTORS);
-    await nutz.powerUp(investorsBal, { from: INVESTORS });
+    const investorsBal = await nutzNew.balanceOf.call(INVESTORS);
+    await nutzNew.powerUp(investorsBal, { from: INVESTORS });
     // event #replacement - milestone payment
     await nextController.moveFloor(CEILING_PRICE * 2);
     let amountAllocated = await pullNew.balanceOf.call(EXEC_BOARD);
     assert.equal(amountAllocated.toNumber(), WEI_AMOUNT * 6000, 'ether wasn\'t allocated to beneficiary');
 
     // check power allocation proper after controller upgrade and replacement Event
-    const ceilingAftereEvent2 = await nutz.ceiling.call();
+    const ceilingAftereEvent2 = await nutzNew.ceiling.call();
     const totalPow = await power.totalSupply.call();
     const founderPow = await power.balanceOf.call(FOUNDERS);
     const investorsPow = await power.balanceOf.call(INVESTORS);

@@ -2,10 +2,8 @@ pragma solidity ^0.4.11;
 
 import '../controller/Controller.sol';
 import '../ownership/Ownable.sol';
-import '../satelites/Storage.sol';
 
 contract UpgradeEventCompact {
-  using SafeMath for uint;
 
   // states
   //  - verifying, initial state
@@ -20,20 +18,21 @@ contract UpgradeEventCompact {
   address public council;
 
   // Params
-  address nextPullPayment;
-  address storageAddr;
-  address nutzAddr;
-  address powerAddr;
-  uint256 maxPower;
-  uint256 downtime;
-  uint256 purchasePrice;
-  uint256 salePrice;
+  address internal nextPullPayment;
+  address internal nextNutz;
+  address internal storageAddr;
+  address internal powerAddr;
+  uint256 internal maxPower;
+  uint256 internal downtime;
+  uint256 internal purchasePrice;
+  uint256 internal salePrice;
 
-  function UpgradeEventCompact(address _oldController, address _nextController, address _nextPullPayment) {
+  function UpgradeEventCompact(address _oldController, address _nextController, address _nextPullPayment, address _nextNutz) {
     state = EventState.Verifying;
     nextController = _nextController;
     oldController = _oldController;
     nextPullPayment = _nextPullPayment; //the ownership of this satellite should be with oldController
+    nextNutz = _nextNutz;
     council = msg.sender;
   }
 
@@ -45,32 +44,38 @@ contract UpgradeEventCompact {
   function upgrade() isState(EventState.Verifying) {
     // check old controller
     var old = Controller(oldController);
-    old.pause();
     require(old.admins(1) == address(this));
-    require(old.paused() == true);
     // check next controller
     var next = Controller(nextController);
     require(next.admins(1) == address(this));
     require(next.paused() == true);
-    // kill old one, and transfer ownership
     // transfer ownership of payments and storage to here
+    address nutzAddr = old.nutzAddr();
+    address pullAddr = old.pullAddr();
     storageAddr = old.storageAddr();
-    nutzAddr = old.nutzAddr();
     powerAddr = old.powerAddr();
     maxPower = old.maxPower();
     downtime = old.downtime();
     purchasePrice = old.ceiling();
     salePrice = old.floor();
-    uint newPowerPool = (old.outstandingPower()).mul(old.activeSupply().add(old.burnPool())).div(old.authorizedPower().sub(old.outstandingPower()));
+    // check the balance in old nutz contract
+    uint256 reserve = nutzAddr.balance;
+    old.moveFloor(0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+    old.allocateEther(reserve, address(this));
+    PullPayment(pullAddr).withdraw();
+    old.pause();
+    require(old.paused() == true);
+    // move floor and allocate ether
     //set pull payment contract in old controller
-    old.setContracts(powerAddr, nextPullPayment, nutzAddr, storageAddr);
+    old.setContracts(powerAddr, nextPullPayment, nextNutz, storageAddr);
     // kill old controller, sending all ETH to new controller
     old.kill(nextController);
+    // transfer reserve to the Nutz contract
+    Nutz(nextNutz).upgrade.value(reserve)();
     // transfer ownership of Nutz/Power contracts to next controller
-    Ownable(nutzAddr).transferOwnership(nextController);
+    Ownable(nextNutz).transferOwnership(nextController);
     Ownable(powerAddr).transferOwnership(nextController);
     // transfer ownership of storage to next controller
-    Storage(storageAddr).setUInt('Nutz', 'powerPool', newPowerPool);
     Ownable(storageAddr).transferOwnership(nextController);
     // if intended, transfer ownership of pull payment account
     Ownable(nextPullPayment).transferOwnership(nextController);
@@ -88,4 +93,7 @@ contract UpgradeEventCompact {
     state = EventState.Complete;
   }
 
+  function() payable {
+
+  }
 }
