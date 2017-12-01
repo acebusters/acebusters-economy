@@ -183,7 +183,7 @@ contract('Nutz', (accounts) => {
     await controller.moveCeiling(ceiling);
 
 
-    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
+    await nutz.purchase(ceiling, {from: accounts[0], value: 2 * ONE_ETH });
 
     // initiate power pool
     await controller.dilutePower(0, 0);
@@ -212,7 +212,7 @@ contract('Nutz', (accounts) => {
       await controller.moveFloor(INFINITY);
       await controller.moveCeiling(ceiling);
 
-      await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
+      await nutz.purchase(ceiling, {from: accounts[0], value: 2 * ONE_ETH });
 
       // initiate power pool
       await controller.dilutePower(0, 0);

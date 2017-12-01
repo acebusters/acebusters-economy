@@ -15,8 +15,6 @@ contract PowerEnabled is MarketEnabled {
   // time it should take to power down
   uint256 public downtime;
 
-  uint public constant MIN_SHARE_OF_POWER = 100000;
-
   modifier onlyPower() {
     require(msg.sender == powerAddr);
     _;
@@ -34,14 +32,6 @@ contract PowerEnabled is MarketEnabled {
 
   function setDowntime(uint256 _downtime) public onlyAdmins {
     downtime = _downtime;
-  }
-
-  function minimumPowerUpSizeBabz() public constant returns (uint256) {
-    uint256 completeSupplyBabz = completeSupply();
-    if (completeSupplyBabz == 0) {
-      return INFINITY;
-    }
-    return completeSupplyBabz.div(MIN_SHARE_OF_POWER);
   }
 
   // this is called when NTZ are deposited into the burn pool
@@ -83,6 +73,7 @@ contract PowerEnabled is MarketEnabled {
 
   // this is called when NTZ are deposited into the power pool
   function powerUp(address _sender, address _from, uint256 _amountBabz) public onlyNutz whenNotPaused {
+    require(_amountBabz >= 1000e12);
     uint256 authorizedPow = authorizedPower();
     require(authorizedPow != 0);
     require(_amountBabz != 0);
@@ -91,9 +82,7 @@ contract PowerEnabled is MarketEnabled {
     uint256 amountPow = _amountBabz.mul(authorizedPow).div(totalBabz);
     // check pow limits
     uint256 outstandingPow = outstandingPower();
-    require(outstandingPow.add(amountPow) <= maxPower);
     uint256 powBal = powerBalanceOf(_from).add(amountPow);
-    require(powBal >= authorizedPow.div(MIN_SHARE_OF_POWER));
 
     if (_sender != _from) {
       allowed[_from][_sender] = allowed[_from][_sender].sub(_amountBabz);
@@ -134,7 +123,8 @@ contract PowerEnabled is MarketEnabled {
   function createDownRequest(address _owner, uint256 _amountPower) public onlyPower whenNotPaused {
     // prevent powering down tiny amounts
     // when powering down, at least completeSupply/minShare Power should be claimed
-    require(_amountPower >= authorizedPower().div(MIN_SHARE_OF_POWER));
+    uint256 amountBabz = _amountPower.mul(completeSupply()).div(authorizedPower());
+    require(amountBabz >= 1000e12);
     _setPowerBalanceOf(_owner, powerBalanceOf(_owner).sub(_amountPower));
 
     var (, left, ) = downs(_owner);
