@@ -82,6 +82,7 @@ contract PowerEnabled is MarketEnabled {
     uint256 amountPow = _amountBabz.mul(authorizedPow).div(totalBabz);
     // check pow limits
     uint256 outstandingPow = outstandingPower();
+    require(outstandingPow.add(amountPow) <= maxPower);
     uint256 powBal = powerBalanceOf(_from).add(amountPow);
 
     if (_sender != _from) {
