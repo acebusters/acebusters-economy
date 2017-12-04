@@ -73,9 +73,7 @@ contract UpgradeEvent {
     // transfer ownership of Nutz/Power contracts to next controller
     Ownable(nutzAddr).transferOwnership(nextController);
     Ownable(powerAddr).transferOwnership(nextController);
-    // transfer ownership of pull and storage to here
-    Ownable(pullAddr).transferOwnership(address(this));
-    Ownable(storageAddr).transferOwnership(address(this));
+    // ownership of pull and storage remains here
     state = EventState.Controlling;
   }
 
