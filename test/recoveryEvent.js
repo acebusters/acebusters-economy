@@ -3,7 +3,7 @@ const Power = artifacts.require('./satelites/Power.sol');
 const Storage = artifacts.require('./satelites/Storage.sol');
 const PullPayment = artifacts.require('./satelites/PullPayment.sol');
 const MockController = artifacts.require('./helpers/MockController.sol');
-const MockRecoveryHelper = artifacts.require('./helpers/MockRecoveryHelper.sol');
+const RecoveryHelper = artifacts.require('./helpers/RecoveryHelper.sol');
 const RecoveryEvent = artifacts.require('./policies/RecoveryEvent.sol');
 const BigNumber = require('bignumber.js');
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
@@ -77,4 +77,48 @@ contract('RecoveryEvent', (accounts) => {
     assert.equal(balancesAfter[3], rectifiedBalances[3], 'recovery Not Successful');
   });
 
+  // Recovery Event not needed
+  it('should allow to recover from emergency with corrupted payments', async () => {
+    // create token contract
+    const SCAMMER = accounts[1];
+    const INVESTORS = accounts[2];
+    const ceiling = new BigNumber(30000);
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(ceiling);
+    // purchase some tokens with ether
+    await nutz.purchase(ceiling, {from: INVESTORS, value: 4 * ONE_ETH });
+
+    const babzBal = await nutz.balanceOf.call(INVESTORS);
+    const nutzReserveBefore = await web3.eth.getBalance(nutz.address);
+
+    assert.equal(nutzReserveBefore.toNumber(), 4 * ONE_ETH);
+
+    // some bug lets scammer steam ether from economy
+    await controller.stealEth(nutzReserveBefore, SCAMMER, {from: SCAMMER });
+    const nutzReserve = await web3.eth.getBalance(nutz.address);
+
+    const balanceScammer = await pull.balanceOf.call(SCAMMER);
+    assert.equal(balanceScammer.toNumber(), nutzReserveBefore.toNumber());
+    assert.equal(nutzReserve.toNumber(), 0);
+
+    // escrow council notices the theft on pullPayment satellite and puases controller immediately
+    await controller.pause();
+
+    // kill pull payment contract and transfer all eth to escrow council
+    const ethBalanceBefore = await web3.eth.getBalance(accounts[0]);
+    await controller.killPull(accounts[0], {gasPrice: 0});
+
+    // check balance with next controller
+    const ethbalancesAfter = await web3.eth.getBalance(accounts[0]);
+
+    assert.equal(ethbalancesAfter.sub(ethBalanceBefore).toNumber(), nutzReserveBefore.toNumber(), 'killPull Not Successful');
+
+    // push ether back to the nutz satellite
+    const recoveryHelper = await RecoveryHelper.new(nutz.address, {value: nutzReserveBefore});
+    await recoveryHelper.kill();
+
+    // check ether in the nutz contract
+    const nutzReserveAfter = await web3.eth.getBalance(nutz.address);
+    assert.equal(nutzReserveBefore.toNumber(), nutzReserveAfter.toNumber(), 'recovery process not succesful');
+  });
 });
