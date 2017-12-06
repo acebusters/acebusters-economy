@@ -90,7 +90,10 @@ contract('RecoveryEvent', (accounts) => {
 
     const babzBal = await nutz.balanceOf.call(INVESTORS);
     const nutzReserveBefore = await web3.eth.getBalance(nutz.address);
-
+    const activeSupplyBefore = await controller.activeSupply();
+    const powerPoolBefore = await controller.powerPool();
+    const burnPoolBefore = await controller.burnPool();
+    const totalSupplyBefore = await controller.completeSupply();
     assert.equal(nutzReserveBefore.toNumber(), 4 * ONE_ETH);
 
     // some bug lets scammer steam ether from economy
@@ -120,5 +123,17 @@ contract('RecoveryEvent', (accounts) => {
     // check ether in the nutz contract
     const nutzReserveAfter = await web3.eth.getBalance(nutz.address);
     assert.equal(nutzReserveBefore.toNumber(), nutzReserveAfter.toNumber(), 'recovery process not succesful');
+
+    // making sure all economy numbers are intact
+    const activeSupplyActive = await controller.activeSupply();
+    const powerPoolActive = await controller.powerPool();
+    const burnPoolActive = await controller.burnPool();
+    const totalSupplyActive = await controller.completeSupply();
+
+    assert.equal(activeSupplyActive.toNumber(), activeSupplyBefore.toNumber(), 'recovery process not succesful');
+    assert.equal(powerPoolActive.toNumber(), powerPoolBefore.toNumber(), 'recovery process not succesful');
+    assert.equal(burnPoolActive.toNumber(), burnPoolBefore.toNumber(), 'recovery process not succesful');
+    assert.equal(totalSupplyActive.toNumber(), totalSupplyBefore.toNumber(), 'recovery process not succesful');
+
   });
 });
