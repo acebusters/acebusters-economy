@@ -1,5 +1,7 @@
+require('dotenv').config();
 require('babel-register');
 require('babel-polyfill');
+var HDWalletProvider = require("truffle-hdwallet-provider");
 
 var mochaConfig = {};
 
@@ -25,12 +27,18 @@ module.exports = {
       network_id: "*" // Match any network id
     },
     rinkeby: {
-      host: "localhost",
-      port: 8545,
-      network_id: 4,
-      gas: 4500000,
-      // uncomment and insert the address of your geth unlocked account if your first account is locked
-      //from: "0xb938282d54aa89fceb0bafa59e122fbc9ad82385"
+      provider: function() {
+        return new HDWalletProvider(process.env.RINKEBY_MNEMONIC || "", "https://rinkeby.infura.io", process.env.RINKEBY_ACCOUNT_INDEX || 0);
+      },
+      gasPrice: 0x50,
+      network_id: 4
+    },
+    mainnet: {
+      provider: function() {
+        return new HDWalletProvider(process.env.MAINNET_MNEMONIC || "", "https://mainnet.infura.io:443", process.env.MAINNET_ACCOUNT_INDEX || 0);
+      },
+      gasPrice: 0x01,
+      network_id: "*"
     },
     coverage: {
       host: "localhost",
