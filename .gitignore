@@ -14,3 +14,6 @@ scTopics
 coverage/
 coverageEnv/
 coverage.json
+
+# dotenv
+.env

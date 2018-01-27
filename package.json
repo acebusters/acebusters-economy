@@ -26,6 +26,8 @@
     "solidity-coverage": "^0.2.1"
   },
   "dependencies": {
-    "bignumber.js": "^4.0.1"
+    "bignumber.js": "^4.0.1",
+    "dotenv": "^4.0.0",
+    "truffle-hdwallet-provider": "0.0.3"
   }
 }
