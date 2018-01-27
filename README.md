@@ -38,5 +38,15 @@ npm run coverage
 
 Executes instrumented tests on a separate testrpc. Coverage report is dumped to the terminal and into `coverage/index.html` (Istanbul HTML format)
 
+
+### truffle console
+
+```
+truffle console --network rinkeby
+truffle console --network mainnet
+```
+
+to be able to sign, create `.env` using `.env.template` as a template and fill in the values
+
 ## License
 Code released under the [MIT License](https://github.com/acebusters/economy/blob/master/LICENSE).
