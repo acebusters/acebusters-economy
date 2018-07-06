@@ -36,12 +36,29 @@ contract PowerEnabled is MarketEnabled {
     downtime = _downtime;
   }
 
-  function minimumPowerUpSizeBabz() public constant returns (uint256) {
+  /*
+   * Returns the amount of babz required to power for given user to have a minimume stake in the economy
+   * Minimum: 1/MIN_SHARE_OF_POWER
+  */
+  function minimumPowerUpSizeBabz(address _holder) public constant returns (uint256) {
     uint256 completeSupplyBabz = completeSupply();
-    if (completeSupplyBabz == 0) {
+    uint256 authorizedPow = authorizedPower();
+    // can't power up if no nutz or no power issued
+    if (completeSupplyBabz == 0 || authorizedPow == 0) {
       return INFINITY;
     }
-    return completeSupplyBabz.div(MIN_SHARE_OF_POWER);
+
+    uint256 userPower = powerBalanceOf(_holder);
+
+    // at least 100000 of economy to be on the balance after power up
+    uint256 minimumShare = completeSupplyBabz.div(MIN_SHARE_OF_POWER);
+
+    // part of economy used already has on his power balance
+    uint256 existingShare = userPower.mul(completeSupplyBabz).div(authorizedPow);
+
+    // total_supply_babz / 100000 - abp_balance * total_supply_babz / authorized_power
+    // how many babz to power up to have a minimum share of economy
+    return minimumShare.sub(existingShare);
   }
 
   // this is called when NTZ are deposited into the burn pool
