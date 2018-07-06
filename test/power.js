@@ -5,6 +5,7 @@ const PullPayment = artifacts.require('./satelites/PullPayment.sol');
 const Controller = artifacts.require('./controller/Controller.sol');
 const BigNumber = require('bignumber.js');
 require('./helpers/transactionMined.js');
+const economy = require('./helpers/economy.js');
 const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
 const babz = (ntz) => new BigNumber(NTZ_DECIMALS).mul(ntz);
@@ -155,6 +156,110 @@ contract('Power', (accounts) => {
     assert.equal(after - before, amountAllocated.toNumber(), 'allocation wasn\'t payed out.');
   });
 
+  it("should not loose precision due to power pool rounding", async () => {
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(1200000000);
+    await controller.setDowntime(DOWNTIME);
+
+    await nutz.purchase(1200000000, {from: accounts[0], value: WEI_AMOUNT });
+
+    // authorize shares
+    const amountPower = new BigNumber(10).pow(12).mul(630000).mul(2);
+    let totalSupplyBabz = await controller.completeSupply.call()
+    await controller.dilutePower(totalSupplyBabz, amountPower);
+    let totalPower = await power.totalSupply.call();
+    await controller.setMaxPower(totalPower);
+
+    // powering up. Here we initialize power pool with non-zero value
+    const powerUpVal = babz(100000);
+    await nutz.powerUp(powerUpVal);
+
+    // keep power pool size & active supply size to use it for later calculations
+    const oldPowerPool = await controller.powerPool.call();
+    const activeSupply = await controller.activeSupply.call();
+
+    // but some more NTZ. We expect power pool to increase more
+    await controller.moveCeiling(20000);
+    await nutz.purchase(20000, {from: accounts[0], value: WEI_AMOUNT });
+
+    // let's check power pool increased precisely
+    const newPowerPool = await controller.powerPool.call();
+    const burnPool = await controller.burnPool.call();
+    // replicating power pool increase logic from purchase() method
+    const expectedPool = oldPowerPool.add(oldPowerPool.mul(new BigNumber(20000).mul(WEI_AMOUNT).div(1000000)).div(activeSupply.add(burnPool)));
+
+    assert.equal(newPowerPool.toNumber(), expectedPool.toNumber(), "Power pool");
+  });
+
+  it("rounding experiment", async () => {
+    const ALICE = accounts[0];
+    const BOB = accounts[1];
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(1200000000);
+    await controller.setDowntime(DOWNTIME);
+
+    console.log('Purchase..');
+    await nutz.purchase(1200000000, {from: ALICE, value: WEI_AMOUNT });
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    console.log('Dilute..');
+    const POW_DECIMALS = new BigNumber(10).pow(12);
+    const amountPower = POW_DECIMALS.mul(6300000).mul(2);
+    let totalSupplyBabz = await controller.completeSupply.call()
+    await controller.dilutePower(totalSupplyBabz, amountPower);
+    let totalPower = await power.totalSupply.call();
+    await controller.setMaxPower(totalPower);
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    let powerUpVal = babz(1000000000);
+    console.log(`Power up\t\t ${economy.printValue(powerUpVal, 'NTZ')} ..`);
+    await nutz.powerUp(powerUpVal);
+    await controller.moveCeiling(20000);
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    console.log(`Purchase\t\t ${economy.printValue(babz(20000), 'NTZ')}`);
+    await nutz.purchase(20000, {from: ALICE, value: WEI_AMOUNT });
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    powerUpVal = babz(100);
+    console.log(`Power up\t\t ${economy.printValue(powerUpVal, 'NTZ')} ..`);
+    await nutz.powerUp(powerUpVal);
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    const nutzBal = await nutz.balanceOf.call(ALICE);
+
+    let pow = (await power.balanceOf.call(ALICE)).div(10);
+    //let pow = babz(50);
+
+    console.log(`Down\t\t\t ${economy.printValue(pow, 'ABP')} ..`);
+    console.log(`Babz for power down?:\t ${economy.printValue(pow.mul(await controller.completeSupply.call()).div(await controller.authorizedPower.call()), 'NTZ')}`)
+    await power.transfer(0x0, pow);
+    console.log('tick..');
+    await power.downTickTest(ALICE, (Date.now() / 1000 | 0) + DOWNTIME);
+
+    const prevUserPower = (await power.balanceOf.call(ALICE)).toNumber();
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    powerUpVal = (await nutz.balanceOf.call(ALICE)).sub(nutzBal);
+
+    for (var i = 0; i < 5; i++) {
+      await nutz.powerUp(powerUpVal);
+      await power.transfer(0x0, pow);
+      await power.downTickTest(ALICE, (Date.now() / 1000 | 0) + DOWNTIME);
+      console.log(`\t\t\t ${economy.printValue(await power.balanceOf.call(ALICE), 'ABP')}`);
+    }
+
+    await economy.printEconomy(controller, nutz, power, ALICE);
+
+    let curUserPower = (await power.balanceOf.call(ALICE)).toNumber();
+    assert.equal(curUserPower, prevUserPower, 'power');
+  });
+
   it('should allow to slash down request');
 
   it("should allow to slash power balance", async () => {
@@ -209,7 +314,7 @@ contract('Power', (accounts) => {
       assert.equal((await controller.minimumPowerUpSizeBabz()).toNumber(), INFINITY, "Initial share size");
     });
 
-    it('should return size of 1/100000 of the economy', async() => {
+    it('should be 100 NTZ', async() => {
       // get some NTZ for 1 ETH
       await controller.moveFloor(INFINITY);
       await controller.moveCeiling(30000);
@@ -217,7 +322,7 @@ contract('Power', (accounts) => {
 
       // at this point we have 30000 ntz in supply and we expect min share ntz size to be 1/100000 of that
       let minShareSizeBabz = (await controller.minimumPowerUpSizeBabz()).toNumber();
-      assert.equal(minShareSizeBabz, babz(30000).div(100000).toNumber(), "Min share size");
+      assert.equal(minShareSizeBabz, babz(100).toNumber(), "Min share size");
 
       // power up half of NTZ
       await controller.dilutePower(0, 0);
@@ -228,7 +333,7 @@ contract('Power', (accounts) => {
 
       // we expect min share ntz size to stay unchanged, cause it includes power pool
       minShareSizeBabz = (await controller.minimumPowerUpSizeBabz()).toNumber();
-      assert.equal(minShareSizeBabz, babz(30000).div(100000).toNumber(), "Min share size");
+      assert.equal(minShareSizeBabz, babz(100).toNumber(), "Min share size");
     });
 
   });
