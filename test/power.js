@@ -2,8 +2,9 @@ const Nutz = artifacts.require('./satelites/Nutz.sol');
 const Power = artifacts.require('./helpers/PowerMock.sol');
 const Storage = artifacts.require('./satelites/Storage.sol');
 const PullPayment = artifacts.require('./satelites/PullPayment.sol');
-const Controller = artifacts.require('./controller/Controller.sol');
+const Controller = artifacts.require('./helpers/MockController.sol');
 const BigNumber = require('bignumber.js');
+const assertJump = require('./helpers/assertJump');
 require('./helpers/transactionMined.js');
 const INFINITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 const NTZ_DECIMALS = new BigNumber(10).pow(12);
@@ -181,6 +182,78 @@ contract('Power', (accounts) => {
     assert.equal(outstandingBefore.div(outstandingAfter).toNumber(), powerPoolBefore.div(powerPoolAfter).toNumber());
   });
 
+  it("should allow to power up for 1000 nutz without rounding error", async () => {
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(CEILING_PRICE);
+    const power = Power.at(await controller.powerAddr.call());
+
+    // get some NTZ for 1 ETH
+    await nutz.purchase(CEILING_PRICE, {from: accounts[0], value: 2 * 1e18 });
+    await controller.dilutePower(0, 0);
+    const authorizedPower = await power.totalSupply.call();
+    await controller.setMaxPower(authorizedPower);
+
+    const nutzToPowerUp = new BigNumber(10000e12);
+    const authorizedPow = await controller.authorizedPower.call();
+    const totalSupply = await controller.completeSupply.call();
+    const powerCalculated = authorizedPow.div(totalSupply).mul(nutzToPowerUp);
+    await nutz.powerUp(nutzToPowerUp);
+    const outstandingBefore = await power.activeSupply.call();
+    const bal = await power.balanceOf.call(accounts[0]);
+    assert.equal(bal.toNumber(), powerCalculated.toNumber(), '3rd party powerup failed');
+  });
+
+  it("should not allow to power up for more than maxPower", async () => {
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(CEILING_PRICE);
+    const power = Power.at(await controller.powerAddr.call());
+
+    // get some NTZ for 1 ETH
+    await nutz.purchase(CEILING_PRICE, {from: accounts[0], value: 2 * 1e18 });
+    await controller.dilutePower(0, 0);
+    const authorizedPower = await power.totalSupply.call();
+    await controller.setMaxPower(authorizedPower);
+
+    const maxPower = await controller.maxPower.call();
+    const authorizedPow = await controller.authorizedPower.call();
+    const totalSupply = await controller.completeSupply.call();
+
+    const nutzPowerUpMax = maxPower.mul(totalSupply).div(authorizedPow);
+    const balance = await nutz.balanceOf.call(accounts[0]);
+    const powerBefore = await power.balanceOf.call(accounts[0]);
+
+    try {
+      await nutz.powerUp(nutzPowerUpMax.add(1));
+    } catch(error) {
+      assertJump(error);
+      const powerAfter = await power.balanceOf.call(accounts[0]);
+      assert.equal(powerBefore.toNumber(), powerAfter.toNumber(), 'powerUp worked');
+    }
+  });
+
+  it("should allow to power up just euqal to maxPower", async () => {
+    await controller.moveFloor(INFINITY);
+    await controller.moveCeiling(CEILING_PRICE);
+    const power = Power.at(await controller.powerAddr.call());
+
+    // get some NTZ for 1 ETH
+    await nutz.purchase(CEILING_PRICE, {from: accounts[0], value: 2 * 1e18 });
+    await controller.dilutePower(0, 0);
+    const authorizedPower = await power.totalSupply.call();
+    await controller.setMaxPower(authorizedPower);
+
+    const maxPower = await controller.maxPower.call();
+    const authorizedPow = await controller.authorizedPower.call();
+    const totalSupply = await controller.completeSupply.call();
+
+    const nutzPowerUpMax = maxPower.mul(totalSupply).div(authorizedPow);
+    const balance = await nutz.balanceOf.call(accounts[0]);
+
+    await nutz.powerUp(nutzPowerUpMax);
+    const powerAfter = await power.balanceOf.call(accounts[0]);
+    assert.equal(maxPower.toNumber(), powerAfter.toNumber(), 'powerUp worked');
+  });
+
   it('#downs should return power down requests in array form', async() => {
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
@@ -200,37 +273,6 @@ contract('Power', (accounts) => {
     assert.equal(downs[0].toNumber(), babz(15000).toNumber(), "Total amount");
     assert.equal(downs[1].toNumber(), babz(15000).toNumber(), "Left amount");
     assert(downs[2].toNumber() > 0, "Power down start timestamp");
-  });
-
-  describe('#minimumPowerUpSizeBabz', () => {
-
-    it('should return INFINITY when there is no NTZ in supply', async() => {
-      // no power possible when no ntz in supply, expect min share to be Infinity
-      assert.equal((await controller.minimumPowerUpSizeBabz()).toNumber(), INFINITY, "Initial share size");
-    });
-
-    it('should return size of 1/100000 of the economy', async() => {
-      // get some NTZ for 1 ETH
-      await controller.moveFloor(INFINITY);
-      await controller.moveCeiling(30000);
-      await nutz.purchase(30000, {from: accounts[0], value: WEI_AMOUNT });
-
-      // at this point we have 30000 ntz in supply and we expect min share ntz size to be 1/100000 of that
-      let minShareSizeBabz = (await controller.minimumPowerUpSizeBabz()).toNumber();
-      assert.equal(minShareSizeBabz, babz(30000).div(100000).toNumber(), "Min share size");
-
-      // power up half of NTZ
-      await controller.dilutePower(0, 0);
-      const power = Power.at(await controller.powerAddr.call());
-      const authorizedPower = await power.totalSupply.call();
-      await controller.setMaxPower(authorizedPower);
-      await nutz.powerUp(babz(15000).toNumber());
-
-      // we expect min share ntz size to stay unchanged, cause it includes power pool
-      minShareSizeBabz = (await controller.minimumPowerUpSizeBabz()).toNumber();
-      assert.equal(minShareSizeBabz, babz(30000).div(100000).toNumber(), "Min share size");
-    });
-
   });
 
 });
