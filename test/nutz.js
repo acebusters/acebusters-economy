@@ -249,6 +249,33 @@ contract('Nutz', (accounts) => {
 
   });
 
+  it('should allow to kill PullPayment and send ether to escrow council', async () => {
+    // create contract and purchase tokens for 1 ether
+    const ceiling = new BigNumber(1000);
+    await controller.moveFloor(ceiling);
+    await controller.moveCeiling(ceiling);
+    await nutz.purchase(ceiling, {from: accounts[0], value: ONE_ETH });
+    let babzBalance = await nutz.balanceOf.call(accounts[0]);
+    // change withdrawal limit
+    await nutz.sell(ceiling, babzBalance);
+    // expect delayed withdrawal
+    const payout = await pull.paymentOf.call(accounts[0]);
+    const oldPullBalance = await web3.eth.getBalance(pull.address);
+    const amountEth = babzBalance.mul(1000000).div(ceiling);
+    const accountBalanceBefore = await web3.eth.getBalance(accounts[0]);
+    // check payout amount
+    assert.equal(payout[0].toNumber(), amountEth.toNumber(), 'payout not saved for user');
+
+    // killing pull from controller
+    await controller.pause({gasPrice: 0});
+    await controller.killPull(accounts[0], {gasPrice: 0});
+
+    const accountBalanceAfter = await web3.eth.getBalance(accounts[0]);
+    const oldPullBalanceAfterKill = await web3.eth.getBalance(pull.address);
+    assert.equal(oldPullBalanceAfterKill.toNumber(), 0, 'selfdestruct not successful');
+    assert.equal(accountBalanceAfter.toNumber() - accountBalanceBefore.toNumber(), ONE_ETH, 'selfdestruct not successful');
+  })
+
   it('setting floor to infinity should disable sell', async () => {
     // create contract and purchase tokens for 1 ether
     const ceiling = new BigNumber(1000);

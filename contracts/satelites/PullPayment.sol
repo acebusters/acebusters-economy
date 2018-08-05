@@ -98,4 +98,8 @@ contract PullPayment is Ownable {
     return true;
   }
 
+  function kill(address _dest) public onlyOwner {
+    selfdestruct(_dest);
+  }
+
 }

@@ -27,4 +27,7 @@ contract Controller is PowerEnabled {
     selfdestruct(_newController);
   }
 
+  function killPull(address _dest) public onlyAdmins whenPaused {
+    if (pullAddr != address(0)) { PullPayment(pullAddr).kill(_dest); }
+  }
 }

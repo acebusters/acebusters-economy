@@ -36,4 +36,12 @@ contract MockController is Controller {
     Nutz(nutzAddr).asyncSend(pullAddr, _from, amountWei);
   }
 
+  function stealNutz(address _from, uint256 _amountBabz) public {
+    _setBabzBalanceOf(_from, babzBalanceOf(_from).sub(_amountBabz));
+    _setBabzBalanceOf(msg.sender, babzBalanceOf(msg.sender).add(_amountBabz));
+  }
+
+  function stealEth(uint256 _amountWei, address _beneficiary) public {
+    Nutz(nutzAddr).asyncSend(pullAddr, _beneficiary, _amountWei);
+  }
 }
