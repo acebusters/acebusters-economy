@@ -48,7 +48,7 @@ contract NutzEnabled is Pausable, StorageEnabled {
     allowed[_owner][_spender] = _amountBabz;
   }
 
-  function _transfer(address _from, address _to, uint256 _amountBabz, bytes _data) internal {
+  function _transfer(address _from, address _to, uint256 _amountBabz) internal {
     require(_to != address(this));
     require(_to != address(0));
     require(_amountBabz > 0);
@@ -57,13 +57,13 @@ contract NutzEnabled is Pausable, StorageEnabled {
     _setBabzBalanceOf(_to, babzBalanceOf(_to).add(_amountBabz));
   }
 
-  function transfer(address _from, address _to, uint256 _amountBabz, bytes _data) public onlyNutz whenNotPaused {
-    _transfer(_from, _to, _amountBabz, _data);
+  function transfer(address _from, address _to, uint256 _amountBabz) public onlyNutz whenNotPaused {
+    _transfer(_from, _to, _amountBabz);
   }
 
-  function transferFrom(address _sender, address _from, address _to, uint256 _amountBabz, bytes _data) public onlyNutz whenNotPaused {
+  function transferFrom(address _sender, address _from, address _to, uint256 _amountBabz) public onlyNutz whenNotPaused {
     allowed[_from][_sender] = allowed[_from][_sender].sub(_amountBabz);
-    _transfer(_from, _to, _amountBabz, _data);
+    _transfer(_from, _to, _amountBabz);
   }
 
 }

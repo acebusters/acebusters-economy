@@ -17,8 +17,8 @@ contract ControllerInterface {
   function allowance(address _owner, address _spender) constant returns (uint256);
 
   function approve(address _owner, address _spender, uint256 _amountBabz) public;
-  function transfer(address _from, address _to, uint256 _amountBabz, bytes _data) public;
-  function transferFrom(address _sender, address _from, address _to, uint256 _amountBabz, bytes _data) public;
+  function transfer(address _from, address _to, uint256 _amountBabz) public;
+  function transferFrom(address _sender, address _from, address _to, uint256 _amountBabz) public;
 
   // Market functions
   function floor() constant returns (uint256);

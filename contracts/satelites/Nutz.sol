@@ -105,7 +105,7 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function transfer(address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
-    ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz, _data);
+    ControllerInterface(owner).transfer(msg.sender, _to, _amountBabz);
     Transfer(msg.sender, _to, _amountBabz);
     _checkDestination(msg.sender, _to, _amountBabz, _data);
     return true;
@@ -121,7 +121,7 @@ contract Nutz is Ownable, ERC20 {
   }
 
   function transferFrom(address _from, address _to, uint256 _amountBabz, bytes _data) public returns (bool) {
-    ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz, _data);
+    ControllerInterface(owner).transferFrom(msg.sender, _from, _to, _amountBabz);
     Transfer(_from, _to, _amountBabz);
     _checkDestination(_from, _to, _amountBabz, _data);
     return true;
