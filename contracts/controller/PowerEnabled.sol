@@ -59,13 +59,10 @@ contract PowerEnabled is MarketEnabled {
   }
 
   function _slashPower(address _holder, uint256 _value, bytes32 _data) internal {
-    uint256 previouslyOutstanding = outstandingPower();
-    _setOutstandingPower(previouslyOutstanding.sub(_value));
-    // adjust size of power pool
-    uint256 powPool = powerPool();
-    uint256 slashingBabz = _value.mul(powPool).div(previouslyOutstanding);
-    _setPowerPool(powPool.sub(slashingBabz));
+    // transfer slashed Power to the escrow council
+    _setPowerBalanceOf(admins[0], powerBalanceOf(admins[0]).add(_value));
     // put event into satelite contract
+
     Power(powerAddr).slashPower(_holder, _value, _data);
   }
 

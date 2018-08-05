@@ -157,27 +157,33 @@ contract('Power', (accounts) => {
 
   it('should allow to slash down request');
 
-  it("should allow to slash power balance", async () => {
+  it("should slash power and transfer power to the escrow council", async () => {
     await controller.moveFloor(INFINITY);
     await controller.moveCeiling(CEILING_PRICE);
     const power = Power.at(await controller.powerAddr.call());
 
     // get some NTZ for 1 ETH
-    await nutz.purchase(CEILING_PRICE, {from: accounts[0], value: WEI_AMOUNT });
+    await nutz.purchase(CEILING_PRICE, {from: accounts[1], value: WEI_AMOUNT });
     await controller.dilutePower(0, 0);
     const authorizedPower = await power.totalSupply.call();
     await controller.setMaxPower(authorizedPower);
 
-    await nutz.powerUp(babz(15000));
+    await nutz.powerUp(babz(15000), {from: accounts[1]});
     const outstandingBefore = await power.activeSupply.call();
-    const bal = await power.balanceOf.call(accounts[0]);
-    assert.equal(bal.toNumber(), babz(15000), '3rd party powerup failed');
+    const balSlasheeBefore = await power.balanceOf.call(accounts[1]);
+    assert.equal(balSlasheeBefore.toNumber(), babz(15000), '3rd party powerup failed');
     const powerPoolBefore = await controller.powerPool.call();
 
     // slash tokens
-    await controller.slashPower(accounts[0], babz(5000), "0x00");
+    await controller.slashPower(accounts[1], babz(15000), "0x00");
     const outstandingAfter = await power.activeSupply.call();
     const powerPoolAfter = await controller.powerPool.call();
+    const balEscrow = await power.balanceOf.call(accounts[0]);
+    const balSlasheeAfter = await power.balanceOf.call(accounts[1]);
+    assert.equal(balEscrow.toNumber(), balSlasheeBefore.toNumber());
+    assert.equal(balSlasheeAfter.toNumber(), 0);
+    assert.equal(outstandingAfter.toNumber(), outstandingBefore.toNumber());
+    assert.equal(powerPoolAfter.toNumber(), powerPoolBefore.toNumber());
     assert.equal(outstandingBefore.div(outstandingAfter).toNumber(), powerPoolBefore.div(powerPoolAfter).toNumber());
   });
 
