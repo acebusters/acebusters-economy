@@ -4,10 +4,10 @@ contract ProxyMock {
 
   event Deposit(address indexed sender, uint value);
   event Withdrawal(address indexed to, uint value, bytes data);
-  
+
   // onwer of contract
   address public owner;
-  
+
   function ProxyMock() {
     owner = msg.sender;
   }
@@ -17,7 +17,7 @@ contract ProxyMock {
       _;
     }
   }
-  
+
   function forward(address _destination, uint _value, bytes _data) onlyOwner {
     if (_destination == 0) {
       assembly {
@@ -31,12 +31,17 @@ contract ProxyMock {
       }
     }
   }
-   
+
   function() payable {
     Deposit(msg.sender, msg.value);
   }
 
+  function purchase(address _addr) payable onlyOwner {
+    bytes memory empty;
+    forward(_addr, msg.value, empty);
+  }
+
   function tokenFallback(address _from, uint _value, bytes _data) {
   }
- 
+
 }
